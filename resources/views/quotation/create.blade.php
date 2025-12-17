@@ -1,13 +1,14 @@
+<!-- In quotation/create.blade.php -->
 @extends('layouts.admin')
 
 @section('page-title')
-    {{__('Create Item')}}
+    {{ __('Create Quotation') }}
 @endsection
 
 @section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{route('dashboard')}}">{{__('Dashboard')}}</a></li>
-    <li class="breadcrumb-item"><a href="{{route('items.index')}}">{{__('Items')}}</a></li>
-    <li class="breadcrumb-item">{{__('Create')}}</li>
+    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">{{ __('Dashboard') }}</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('quotation.index') }}">{{ __('Quotations') }}</a></li>
+    <li class="breadcrumb-item">{{ __('Create') }}</li>
 @endsection
 
 @section('content')
@@ -16,364 +17,425 @@
             <div class="card">
                 <div class="card-header">
                     <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <h5 class="card-title mb-0">{{__('Add/Update Items')}}</h5>
+                        <div class="col-md-8">
+                            <h5 class="card-title mb-0">{{ __('Create New Quotation') }}</h5>
                         </div>
-                        <div class="col-md-6 text-end">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="item_type" id="single_item" value="single" checked>
-                                <label class="form-check-label" for="single_item">Single Item</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="item_type" id="bulk_items" value="bulk">
-                                <label class="form-check-label" for="bulk_items">Bulk Items</label>
-                            </div>
+                        <div class="col-md-4 text-end">
+                            @if(session('converted_enquiry'))
+                                <span class="badge bg-info">
+                                    <i class="ti ti-refresh"></i> Converted from Enquiry #{{ session('converted_enquiry')['enquiry_no'] ?? '' }}
+                                </span>
+                            @endif
                         </div>
                     </div>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route('items.store') }}" id="itemForm" enctype="multipart/form-data">
+                    <form method="POST" action="{{ route('quotation.store') }}" id="quotationForm">
                         @csrf
                         
-                        <!-- First Row -->
-                        <div class="row mb-4">
+                        <!-- Enquiry Reference (Hidden) -->
+                        @if(session('converted_enquiry'))
+                            <input type="hidden" name="enquiry_id" value="{{ session('converted_enquiry')['enquiry_id'] ?? '' }}">
+                        @endif
+                        
+                        <div class="row">
+                            <!-- Left Column -->
                             <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="name" class="form-label"><strong>{{ __('Item Name*') }}</strong></label>
-                                    <input type="text" class="form-control" id="name" name="name" required 
-                                           placeholder="Enter item name" value="{{ old('name') }}">
-                                    @error('name')
-                                        <span class="text-danger">{{ $message }}</span>
-                                    @enderror
+                                <!-- Customer Information -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">{{ __('Customer Information') }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <label for="customer_id" class="form-label">{{ __('Customer*') }}</label>
+                                                <select class="form-control" id="customer_id" name="customer_id" required>
+                                                    <option value="">{{ __('Select Customer') }}</option>
+                                                    @foreach($customers as $customer)
+                                                       <!-- Fixed version -->
+<option value="{{ $customer->id }}" 
+    @if(isset($selectedCustomerId) && $selectedCustomerId == $customer->id) selected 
+    @elseif(session('converted_enquiry') && isset(session('converted_enquiry')['customer_id']) && session('converted_enquiry')['customer_id'] == $customer->id) selected @endif>
+    {{ $customer->name }}
+</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <label for="contact_person" class="form-label">{{ __('Contact Person*') }}</label>
+                                                <input type="text" class="form-control" id="contact_person" 
+                                                       name="contact_person" required
+                                                       value="{{ session('converted_enquiry')['contact_person'] ?? old('contact_person') }}">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Customer Details (Will be auto-filled via AJAX) -->
+                                        <div id="customerDetails" style="display: none;">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <label class="form-label">{{ __('Email') }}</label>
+                                                    <input type="text" class="form-control" id="customer_email" readonly>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">{{ __('Phone') }}</label>
+                                                    <input type="text" class="form-control" id="customer_phone" readonly>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Quotation Details -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">{{ __('Quotation Details') }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label for="quotation_code" class="form-label">{{ __('Quotation No*') }}</label>
+                                                <input type="text" class="form-control" id="quotation_code" 
+                                                       name="quotation_code" required readonly
+                                                       value="{{ $quotationCode }}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="quotation_date" class="form-label">{{ __('Date*') }}</label>
+                                                <input type="date" class="form-control" id="quotation_date" 
+                                                       name="quotation_date" required
+                                                       value="{{ date('Y-m-d') }}">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label for="expire_date" class="form-label">{{ __('Expiry Date') }}</label>
+                                                <input type="date" class="form-control" id="expire_date" 
+                                                       name="expire_date" value="{{ date('Y-m-d', strtotime('+30 days')) }}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="status" class="form-label">{{ __('Status*') }}</label>
+                                                <select class="form-control" id="status" name="status" required>
+                                                    <option value="open" selected>{{ __('Open') }}</option>
+                                                    <option value="closed">{{ __('Closed') }}</option>
+                                                    <option value="po_converted">{{ __('PO Converted') }}</option>
+                                                    <option value="lost">{{ __('Lost') }}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Right Column -->
+                            <div class="col-md-6">
+                                <!-- Sales & Reference -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">{{ __('Sales & Reference') }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <label for="salesman_id" class="form-label">{{ __('Sales Engineer*') }}</label>
+                                                <select class="form-control" id="salesman_id" name="salesman_id" required>
+                                                    <option value="">{{ __('Select Sales Engineer') }}</option>
+                                                    @foreach($salesmen as $id => $name)
+                                                        <option value="{{ $id }}"
+                                                            @if(session('converted_enquiry') && session('converted_enquiry')['salesman_id'] == $id) selected 
+                                                            @elseif(old('salesman_id') == $id) selected @endif>
+                                                            {{ $name }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label for="reference" class="form-label">{{ __('Reference') }}</label>
+                                                <input type="text" class="form-control" id="reference" 
+                                                       name="reference" value="{{ old('reference') }}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="reference_no" class="form-label">{{ __('Reference No') }}</label>
+                                                <input type="text" class="form-control" id="reference_no" 
+                                                       name="reference_no" value="{{ old('reference_no') }}">
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <label for="reference_date" class="form-label">{{ __('Reference Date') }}</label>
+                                                <input type="date" class="form-control" id="reference_date" 
+                                                       name="reference_date" value="{{ old('reference_date') }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- GST Information -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">{{ __('GST Information') }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <label for="gst_type" class="form-label">{{ __('GST Type') }}</label>
+                                                <select class="form-control" id="gst_type" name="gst_type">
+                                                    <option value="">{{ __('Select GST Type') }}</option>
+                                                    <option value="cgst_sgst">{{ __('CGST + SGST') }}</option>
+                                                    <option value="igst">{{ __('IGST') }}</option>
+                                                </select>
+                                                <small id="gstMessage" class="form-text text-muted"></small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Items Section -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">{{ __('Items') }}</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table" id="itemsTable">
+                                        <thead>
+                                            <tr>
+                                                <th width="30%">{{ __('Item*') }}</th>
+                                                <th width="30%">{{ __('Description') }}</th>
+                                                <th width="10%">{{ __('Qty*') }}</th>
+                                                <th width="10%">{{ __('Unit Price*') }}</th>
+                                                <th width="10%">{{ __('Discount') }}</th>
+                                                <th width="10%">{{ __('Total') }}</th>
+                                                <th width="5%">{{ __('Action') }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="itemsBody">
+                                            <!-- Items will be added here -->
+                                            @if(session('converted_enquiry') && isset(session('converted_enquiry')['items']))
+                                                @php
+                                                    $enquiryItems = session('converted_enquiry')['items'] ?? [];
+                                                @endphp
+                                                @foreach($enquiryItems as $index => $item)
+                                                    <tr data-index="{{ $index }}">
+                                                        <td>
+                                                            <select class="form-control item-select" name="items[{{ $index }}][item_id]" required>
+                                                                <option value="">{{ __('Select Item') }}</option>
+                                                                @foreach($items as $id => $name)
+                                                                    <option value="{{ $name }}"
+                                                                        @if(isset($item['item_id']) && $item['item_id'] == $name) selected 
+                                                                        @elseif(isset($item['description']) && $item['description'] == $name) selected @endif>
+                                                                        {{ $name }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        </td>
+                                                        <td>
+                                                            <textarea class="form-control" name="items[{{ $index }}][description]" rows="1">{{ $item['description'] ?? ($item['item_id'] ?? '') }}</textarea>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" class="form-control quantity" 
+                                                                   name="items[{{ $index }}][quantity]" min="0.01" step="0.01" 
+                                                                   value="{{ $item['quantity'] ?? 1 }}" required>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" class="form-control unit-price" 
+                                                                   name="items[{{ $index }}][unit_price]" min="0" step="0.01" 
+                                                                   value="{{ $item['unit_price'] ?? ($item['sales_price'] ?? 0) }}" required>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" class="form-control discount" 
+                                                                   name="items[{{ $index }}][discount]" min="0" step="0.01" 
+                                                                   value="0">
+                                                        </td>
+                                                        <td>
+                                                            <input type="text" class="form-control total-amount" 
+                                                                   name="items[{{ $index }}][total_amount]" readonly
+                                                                   value="{{ isset($item['total_amount']) ? number_format($item['total_amount'], 2) : '0.00' }}">
+                                                        </td>
+                                                        <td>
+                                                            @if($loop->first && count($enquiryItems) == 1)
+                                                                <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
+                                                                    <i class="ti ti-trash"></i>
+                                                                </button>
+                                                            @else
+                                                                <button type="button" class="btn btn-sm btn-danger remove-item">
+                                                                    <i class="ti ti-trash"></i>
+                                                                </button>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            @else
+                                                <!-- Default first row -->
+                                                <tr data-index="0">
+                                                    <td>
+                                                        <select class="form-control item-select" name="items[0][item_id]" required>
+                                                            <option value="">{{ __('Select Item') }}</option>
+                                                            @foreach($items as $id => $name)
+                                                                <option value="{{ $name }}">{{ $name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <textarea class="form-control" name="items[0][description]" rows="1"></textarea>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" class="form-control quantity" 
+                                                               name="items[0][quantity]" min="0.01" step="0.01" 
+                                                               value="1" required>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" class="form-control unit-price" 
+                                                               name="items[0][unit_price]" min="0" step="0.01" 
+                                                               value="0" required>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" class="form-control discount" 
+                                                               name="items[0][discount]" min="0" step="0.01" 
+                                                               value="0">
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" class="form-control total-amount" 
+                                                               name="items[0][total_amount]" readonly
+                                                               value="0.00">
+                                                    </td>
+                                                    <td>
+                                                        <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
+                                                            <i class="ti ti-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            @endif
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="text-end mt-3">
+                                    <button type="button" class="btn btn-primary" id="addItem">
+                                        <i class="ti ti-plus"></i> {{ __('Add Item') }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Summary Section -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <!-- Terms & Conditions -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">{{ __('Terms & Conditions') }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <label for="payment_terms" class="form-label">{{ __('Payment Terms') }}</label>
+                                                <textarea class="form-control" id="payment_terms" 
+                                                          name="payment_terms" rows="3" placeholder="{{ __('Enter payment terms...') }}">{{ old('payment_terms') }}</textarea>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <label for="description" class="form-label">{{ __('Additional Notes') }}</label>
+                                                <textarea class="form-control" id="description" 
+                                                          name="description" rows="3" placeholder="{{ __('Enter additional notes...') }}">{{ old('description') }}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="item_group" class="form-label"><strong>{{ __('Item Group*') }}</strong></label>
-                                    <select class="form-control select2" id="item_group" name="item_group" required>
-                                        <option value="">{{ __('-Select-') }}</option>
-                                        <option value="single" {{ old('item_group') == 'single' ? 'selected' : 'selected' }}>{{ __('Single') }}</option>
-                                        <option value="combo" {{ old('item_group') == 'combo' ? 'selected' : '' }}>{{ __('Combo') }}</option>
-                                        <option value="bundle" {{ old('item_group') == 'bundle' ? 'selected' : '' }}>{{ __('Bundle') }}</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Second Row -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="hsn" class="form-label"><strong>{{ __('HSN') }}</strong></label>
-                                    <input type="text" class="form-control" id="hsn" name="hsn" 
-                                           placeholder="Enter HSN code" value="{{ old('hsn') }}">
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="barcode" class="form-label"><strong>{{ __('Barcode') }}</strong></label>
-                                    <input type="text" class="form-control" id="barcode" name="barcode" 
-                                           placeholder="Enter barcode" value="{{ old('barcode') }}">
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="brand" class="form-label"><strong>{{ __('Brand') }}</strong></label>
-                                    <select class="form-control select2" id="brand" name="brand">
-                                        <option value="">{{ __('-Select-') }}</option>
-                                        @foreach($brands as $key => $brandName)
-                                            <option value="{{ $brandName }}" {{ old('brand') == $brandName ? 'selected' : '' }}>
-                                                {{ $brandName }}
-                                            </option>
-                                        @endforeach
-                                        <option value="other">{{ __('Other') }}</option>
-                                    </select>
-                                    <input type="text" class="form-control mt-2" id="other_brand" name="other_brand" 
-                                           placeholder="Enter other brand" style="display: none;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Third Row -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="unit" class="form-label"><strong>{{ __('Unit') }}</strong></label>
-                                    <select class="form-control select2" id="unit" name="unit">
-                                        <option value="">{{ __('-Select-') }}</option>
-                                        @foreach($units as $key => $unitName)
-                                            <option value="{{ $key }}" {{ old('unit') == $key ? 'selected' : '' }}>
-                                                {{ $unitName }}
-                                            </option>
-                                        @endforeach
-                                        <option value="other">{{ __('Other') }}</option>
-                                    </select>
-                                    <input type="text" class="form-control mt-2" id="other_unit" name="other_unit" 
-                                           placeholder="Enter other unit" style="display: none;">
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="alert_quantity" class="form-label"><strong>{{ __('Alert Quantity') }}</strong></label>
-                                    <input type="number" class="form-control text-end" id="alert_quantity" 
-                                           name="alert_quantity" min="0" step="1" placeholder="0" 
-                                           value="{{ old('alert_quantity', 0) }}">
-                                </div>
-                            </div>
-                            
-                           <div class="col-md-4">
-    <div class="form-group">
-        <label for="category" class="form-label"><strong>{{ __('Category') }}</strong></label>
-        <select class="form-control select2" id="category" name="category">
-            <option value="">{{ __('-Select-') }}</option>
-            @foreach($categories as $key => $categoryName)
-                <option value="{{ $categoryName }}" {{ old('category') == $categoryName ? 'selected' : '' }}>
-                    {{ $categoryName }}
-                </option>
-            @endforeach
-            <option value="other">{{ __('Other') }}</option>
-        </select>
-        <input type="text" class="form-control mt-2" id="other_category" name="other_category" 
-               placeholder="Enter other category" style="display: none;">
-    </div>
-</div>
-                        </div>
-
-                        <!-- Description Row -->
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label for="description" class="form-label"><strong>{{ __('Description') }}</strong></label>
-                                    <textarea class="form-control" id="description" name="description" 
-                                              rows="3" placeholder="Enter item description">{{ old('description') }}</textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Fourth Row -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="discount_type" class="form-label"><strong>{{ __('Discount Type') }}</strong></label>
-                                    <select class="form-control select2" id="discount_type" name="discount_type">
-                                        <option value="percentage" {{ old('discount_type') == 'percentage' ? 'selected' : 'selected' }}>
-                                            {{ __('Percentage(%)') }}
-                                        </option>
-                                        <option value="fixed" {{ old('discount_type') == 'fixed' ? 'selected' : '' }}>
-                                            {{ __('Fixed Amount') }}
-                                        </option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="discount" class="form-label"><strong>{{ __('Discount') }}</strong></label>
-                                    <input type="number" class="form-control text-end" id="discount" 
-                                           name="discount" min="0" step="0.01" placeholder="0.00" 
-                                           value="{{ old('discount', 0) }}">
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="price" class="form-label"><strong>{{ __('Price*') }}</strong></label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control text-end" id="price" 
-                                               name="price" min="0" step="0.01" placeholder="0.00" 
-                                               required value="{{ old('price', 0) }}">
+                                <!-- Totals -->
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">{{ __('Summary') }}</h6>
                                     </div>
-                                    <small class="form-text text-muted">{{ __('Price of item without Tax') }}</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Fifth Row -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="tax_type" class="form-label"><strong>{{ __('Tax Type*') }}</strong></label>
-                                    <select class="form-control select2" id="tax_type" name="tax_type" required>
-                                        <option value="">{{ __('-Select-') }}</option>
-                                        <option value="inclusive" {{ old('tax_type') == 'inclusive' ? 'selected' : 'selected' }}>
-                                            {{ __('Inclusive') }}
-                                        </option>
-                                        <option value="exclusive" {{ old('tax_type') == 'exclusive' ? 'selected' : '' }}>
-                                            {{ __('Exclusive') }}
-                                        </option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="mrp" class="form-label"><strong>{{ __('MRP') }}</strong></label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control text-end" id="mrp" 
-                                               name="mrp" min="0" step="0.01" placeholder="0.00" 
-                                               value="{{ old('mrp', 0) }}">
-                                    </div>
-                                    <small class="form-text text-muted">{{ __('Maximum Retail Price') }}</small>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="company_id" class="form-label"><strong>{{ __('Company') }}</strong></label>
-                                    <select class="form-control select2" id="company_id" name="company_id" required>
-                                        <option value="">{{ __('-Select-') }}</option>
-                                        @foreach($companies as $id => $companyName)
-                                            <option value="{{ $id }}" {{ old('company_id') == $id ? 'selected' : '' }}>
-                                                {{ $companyName }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sixth Row -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="tax_id" class="form-label"><strong>{{ __('Tax') }}</strong></label>
-                                    <select class="form-control select2" id="tax_id" name="tax_id">
-                                        <option value="">{{ __('-Select-') }}</option>
-                                        @foreach($taxes as $id => $taxName)
-                                            <option value="{{ $id }}" {{ old('tax_id') == $id ? 'selected' : '' }}>
-                                                {{ $taxName }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="profit_margin" class="form-label"><strong>{{ __('Profit Margin(%)') }}</strong></label>
-                                    <input type="number" class="form-control text-end" id="profit_margin" 
-                                           name="profit_margin" min="0" step="0.01" placeholder="0.00" 
-                                           value="{{ old('profit_margin', 0) }}">
-                                    <small class="form-text text-muted">{{ __('Profit in %') }}</small>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="sku" class="form-label"><strong>{{ __('SKU') }}</strong></label>
-                                    <input type="text" class="form-control" id="sku" name="sku" 
-                                           placeholder="Enter SKU" value="{{ old('sku') }}">
-                                    @error('sku')
-                                        <span class="text-danger">{{ $message }}</span>
-                                    @enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Seventh Row -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="seller_points" class="form-label"><strong>{{ __('Seller Points') }}</strong></label>
-                                    <input type="number" class="form-control text-end" id="seller_points" 
-                                           name="seller_points" min="0" step="1" placeholder="0" 
-                                           value="{{ old('seller_points', 0) }}">
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="purchase_price" class="form-label"><strong>{{ __('Purchase Price*') }}</strong></label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control text-end" id="purchase_price" 
-                                               name="purchase_price" min="0" step="0.01" placeholder="0.00" 
-                                               required value="{{ old('purchase_price', 0) }}">
-                                    </div>
-                                    <small class="form-text text-muted">{{ __('Total Price with Tax Amount') }}</small>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="sales_price" class="form-label"><strong>{{ __('Sales Price*') }}</strong></label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control text-end" id="sales_price" 
-                                               name="sales_price" min="0" step="0.01" placeholder="0.00" 
-                                               required value="{{ old('sales_price', 0) }}">
-                                    </div>
-                                    <small class="form-text text-muted">{{ __('Sales Price') }}</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Eighth Row - Opening Stock -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="opening_stock" class="form-label"><strong>{{ __('Opening Stock') }}</strong></label>
-                                    <input type="number" class="form-control text-end" id="opening_stock" 
-                                           name="opening_stock" min="0" step="1" placeholder="0" 
-                                           value="{{ old('opening_stock', 0) }}">
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-8">
-                                <div class="form-group">
-                                    <label class="form-label"><strong>{{ __('Select Image') }}</strong></label>
-                                    <div class="input-group">
-                                        <input type="file" class="form-control" id="item_image" name="item_image" 
-                                               accept="image/*" onchange="previewImage(this)">
-                                        <label class="input-group-text" for="item_image">{{ __('Choose File') }}</label>
-                                    </div>
-                                    <div class="form-text text-muted">
-                                        {{ __('Max Width/Height: 1000px * 1000px & Size: 1MB') }}
-                                    </div>
-                                    <div class="mt-2">
-                                        <img id="imagePreview" src="#" alt="Image Preview" style="max-width: 200px; display: none;">
+                                    <div class="card-body">
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{{ __('Subtotal') }}</label>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <span id="subtotal">0.00</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{{ __('Discount') }}</label>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <span id="totalDiscount">0.00</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{{ __('CGST') }}</label>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <span id="totalCgst">0.00</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{{ __('SGST') }}</label>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <span id="totalSgst">0.00</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{{ __('IGST') }}</label>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <span id="totalIgst">0.00</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{{ __('Grand Total') }}</label>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <h5 id="grandTotal">0.00</h5>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Hidden fields for calculations -->
+                                        <input type="hidden" id="subtotalInput" name="subtotal" value="0">
+                                        <input type="hidden" id="totalDiscountInput" name="total_discount" value="0">
+                                        <input type="hidden" id="cgstInput" name="cgst" value="0">
+                                        <input type="hidden" id="sgstInput" name="sgst" value="0">
+                                        <input type="hidden" id="igstInput" name="igst" value="0">
+                                        <input type="hidden" id="grandTotalInput" name="grand_total" value="0">
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Additional Image Row -->
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <div class="form-group">
-                                    <label class="form-label"><strong>{{ __('Additional Image') }}</strong></label>
-                                    <div class="input-group">
-                                        <input type="file" class="form-control" id="additional_image" 
-                                               name="additional_image" accept="image/*" onchange="previewAdditionalImage(this)">
-                                        <label class="input-group-text" for="additional_image">{{ __('Choose File') }}</label>
-                                    </div>
-                                    <div class="form-text text-muted">
-                                        {{ __('Max Width/Height: 1000px * 1000px & Size: 1MB') }}
-                                    </div>
-                                    <div class="mt-2">
-                                        <img id="additionalImagePreview" src="#" alt="Additional Image Preview" style="max-width: 200px; display: none;">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Hidden fields -->
-                        <input type="hidden" name="created_by" value="{{ Auth::id() }}">
-
+                        
                         <!-- Footer Buttons -->
                         <div class="row mt-4">
                             <div class="col-md-12 text-center">
                                 <button type="submit" class="btn btn-success btn-lg px-5">
-                                    <i class="fas fa-save"></i> {{ __('Save') }}
+                                    <i class="ti ti-save"></i> {{ __('Save Quotation') }}
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary btn-lg px-5" onclick="window.history.back()">
-                                    <i class="fas fa-times"></i> {{ __('Close') }}
+                                    <i class="ti ti-x"></i> {{ __('Cancel') }}
                                 </button>
                             </div>
                         </div>
@@ -384,377 +446,260 @@
     </div>
 @endsection
 
-@push('styles')
-<link href="{{ asset('css/select2.min.css') }}" rel="stylesheet" />
-<style>
-    .card {
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        border: none;
-    }
-    
-    .card-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 12px 12px 0 0 !important;
-        padding: 1.2rem 1.8rem;
-        border-bottom: none;
-    }
-    
-    .card-title {
-        color: white;
-        font-weight: 600;
-        font-size: 1.1rem;
-        margin: 0;
-    }
-    
-    .card-body {
-        padding: 1.8rem;
-    }
-    
-    .form-label {
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 8px;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .form-control, .select2-container .select2-selection--single {
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-        padding: 10px 14px;
-        font-size: 0.9rem;
-        transition: all 0.3s ease;
-        height: 42px;
-    }
-    
-    .form-control:focus, .select2-container--focus .select2-selection--single {
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
-        transform: translateY(-1px);
-    }
-    
-    .text-end {
-        text-align: right !important;
-    }
-    
-    .input-group-text {
-        background-color: #f1f5f9;
-        border-color: #e2e8f0;
-        color: #475569;
-        font-weight: 600;
-    }
-    
-    .form-text {
-        font-size: 0.8rem;
-        color: #6b7280 !important;
-    }
-    
-    .select2-container--default {
-        width: 100% !important;
-    }
-    
-    .select2-container--default .select2-selection--single {
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-        height: 42px;
-    }
-    
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 40px;
-        padding-left: 14px;
-        color: #2d3748;
-    }
-    
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 40px;
-    }
-    
-    .btn-success {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        border: none;
-        transition: all 0.3s;
-    }
-    
-    .btn-success:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(16, 185, 129, 0.4);
-    }
-    
-    .btn-outline-secondary {
-        transition: all 0.3s;
-    }
-    
-    .btn-outline-secondary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(148, 163, 184, 0.3);
-    }
-    
-    /* Image preview styling */
-    #imagePreview, #additionalImagePreview {
-        border: 2px dashed #d1d5db;
-        border-radius: 8px;
-        padding: 10px;
-        background-color: #f9fafb;
-        max-height: 200px;
-        object-fit: contain;
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .card-body {
-            padding: 1.2rem;
-        }
-        
-        .card-header {
-            padding: 1rem 1.2rem;
-        }
-        
-        .btn-lg {
-            padding: 0.75rem 1.5rem;
-            font-size: 0.9rem;
-        }
-        
-        .form-control, .select2-container .select2-selection--single {
-            padding: 8px 12px;
-            font-size: 0.85rem;
-            height: 38px;
-        }
-    }
-</style>
-@endpush
-
 @push('scripts')
-<script src="{{ asset('js/jquery.min.js') }}"></script>
-<script src="{{ asset('js/select2.min.js') }}"></script>
 <script>
     $(document).ready(function() {
-        // Initialize all Select2 dropdowns
-        $('.select2').select2({
-            width: '100%',
-            placeholder: 'Select...',
-            allowClear: true,
-            dropdownParent: $('#itemForm')
+        // Initialize itemIndex based on session data or default to 1
+        let itemIndex = 0;
+        @if(session('converted_enquiry') && isset(session('converted_enquiry')['items']))
+            itemIndex = {{ count(session('converted_enquiry')['items']) }};
+        @endif
+        
+        // Calculate totals for initial rows
+        calculateTotals();
+        
+        // Add new item row
+        $('#addItem').click(function() {
+            const newRow = `
+                <tr data-index="${itemIndex}">
+                    <td>
+                        <select class="form-control item-select" name="items[${itemIndex}][item_id]" required>
+                            <option value="">{{ __('Select Item') }}</option>
+                            @foreach($items as $id => $name)
+                                <option value="{{ $name }}">{{ $name }}</option>
+                            @endforeach
+                        </select>
+                    </td>
+                    <td>
+                        <textarea class="form-control" name="items[${itemIndex}][description]" rows="1"></textarea>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control quantity" 
+                               name="items[${itemIndex}][quantity]" min="0.01" step="0.01" 
+                               value="1" required>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control unit-price" 
+                               name="items[${itemIndex}][unit_price]" min="0" step="0.01" 
+                               value="0" required>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control discount" 
+                               name="items[${itemIndex}][discount]" min="0" step="0.01" 
+                               value="0">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control total-amount" 
+                               name="items[${itemIndex}][total_amount]" readonly
+                               value="0.00">
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-danger remove-item">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            
+            $('#itemsBody').append(newRow);
+            itemIndex++;
+            calculateTotals();
         });
         
-        // Handle radio button changes for item type
-        $('input[name="item_type"]').change(function() {
-            if ($(this).val() === 'bulk') {
-                alert('Bulk item creation would open a different interface or upload form.');
-                // You can redirect or show/hide fields here
+        // Remove item row
+        $(document).on('click', '.remove-item', function() {
+            if($('#itemsBody tr').length > 1) {
+                $(this).closest('tr').remove();
+                calculateTotals();
             }
         });
         
-        // Handle other options for brand, unit, category
-        $('#brand, #unit, #category').on('change', function() {
-            const field = $(this).attr('id');
-            const otherField = $('#other_' + field);
-            
-            if ($(this).val() === 'other') {
-                otherField.show();
-                otherField.prop('required', true);
+        // Calculate item totals
+        $(document).on('keyup', '.quantity, .unit-price, .discount', function() {
+            const row = $(this).closest('tr');
+            calculateRowTotal(row);
+            calculateTotals();
+        });
+        
+        // Load customer details
+        $('#customer_id').change(function() {
+            const customerId = $(this).val();
+            if(customerId) {
+                $.ajax({
+                    url: '{{ route("quotation.get-customer-details") }}',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        customer_id: customerId
+                    },
+                    success: function(response) {
+                        if(response.success) {
+                            $('#customer_email').val(response.email);
+                            $('#customer_phone').val(response.mobile);
+                            $('#customerDetails').show();
+                        }
+                    }
+                });
+                
+                // Get GST type for this customer
+                $.ajax({
+                    url: '{{ route("quotation.get-gst-type") }}',
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        customer_id: customerId
+                    },
+                    success: function(response) {
+                        $('#gst_type').val(response.gst_type);
+                        $('#gstMessage').text(response.message);
+                    }
+                });
             } else {
-                otherField.hide();
-                otherField.prop('required', false);
-                otherField.val('');
+                $('#customerDetails').hide();
+                $('#gst_type').val('');
+                $('#gstMessage').text('');
             }
         });
         
-        // Auto-calculate sales price based on purchase price and profit margin
-        $('#purchase_price, #profit_margin').on('keyup change', function() {
-            calculateSalesPrice();
+        // Auto-fill description when item is selected
+        $(document).on('change', '.item-select', function() {
+            const selectedItem = $(this).val();
+            const descriptionField = $(this).closest('tr').find('textarea[name$="[description]"]');
+            
+            if(selectedItem && descriptionField.val().trim() === '') {
+                descriptionField.val(selectedItem);
+            }
         });
         
-        // Auto-calculate discount amount
-        $('#price, #discount, #discount_type').on('keyup change', function() {
-            calculateDiscountedPrice();
+        // Initialize customer selection if coming from enquiry
+        @if(session('converted_enquiry') && isset(session('converted_enquiry')['customer_id']))
+            $('#customer_id').val('{{ session("converted_enquiry")["customer_id"] }}').trigger('change');
+        @endif
+        
+        function calculateRowTotal(row) {
+            const quantity = parseFloat(row.find('.quantity').val()) || 0;
+            const unitPrice = parseFloat(row.find('.unit-price').val()) || 0;
+            const discount = parseFloat(row.find('.discount').val()) || 0;
+            
+            let total = quantity * unitPrice;
+            if(discount > 0) {
+                total -= (total * discount / 100);
+            }
+            
+            row.find('.total-amount').val(total.toFixed(2));
+        }
+        
+        function calculateTotals() {
+            let subtotal = 0;
+            let totalDiscount = 0;
+            
+            $('#itemsBody tr').each(function() {
+                const rowTotal = parseFloat($(this).find('.total-amount').val()) || 0;
+                subtotal += rowTotal;
+                
+                const quantity = parseFloat($(this).find('.quantity').val()) || 0;
+                const unitPrice = parseFloat($(this).find('.unit-price').val()) || 0;
+                const discount = parseFloat($(this).find('.discount').val()) || 0;
+                
+                if(discount > 0) {
+                    const itemSubtotal = quantity * unitPrice;
+                    totalDiscount += (itemSubtotal * discount / 100);
+                }
+            });
+            
+            // Calculate GST based on selected type
+            const gstType = $('#gst_type').val();
+            let cgst = 0;
+            let sgst = 0;
+            let igst = 0;
+            
+            if(gstType === 'cgst_sgst') {
+                cgst = sgst = (subtotal * 9) / 100; // Assuming 18% GST split as 9% CGST + 9% SGST
+            } else if(gstType === 'igst') {
+                igst = (subtotal * 18) / 100; // Assuming 18% IGST
+            }
+            
+            const grandTotal = subtotal - totalDiscount + cgst + sgst + igst;
+            
+            // Update display
+            $('#subtotal').text(subtotal.toFixed(2));
+            $('#totalDiscount').text(totalDiscount.toFixed(2));
+            $('#totalCgst').text(cgst.toFixed(2));
+            $('#totalSgst').text(sgst.toFixed(2));
+            $('#totalIgst').text(igst.toFixed(2));
+            $('#grandTotal').text(grandTotal.toFixed(2));
+            
+            // Update hidden inputs
+            $('#subtotalInput').val(subtotal);
+            $('#totalDiscountInput').val(totalDiscount);
+            $('#cgstInput').val(cgst);
+            $('#sgstInput').val(sgst);
+            $('#igstInput').val(igst);
+            $('#grandTotalInput').val(grandTotal);
+        }
+        
+        // Recalculate when GST type changes
+        $('#gst_type').change(function() {
+            calculateTotals();
         });
         
-        // Initialize calculations
-        calculateSalesPrice();
-        calculateDiscountedPrice();
-    });
-    
-    function previewImage(input) {
-        const preview = document.getElementById('imagePreview');
-        const file = input.files[0];
-        
-        if (file) {
-            const reader = new FileReader();
+        // Form validation
+        $('#quotationForm').submit(function(e) {
+            let isValid = true;
+            let errorMessages = [];
             
-            reader.onload = function(e) {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
+            // Validate required fields
+            if($('#customer_id').val() === '') {
+                errorMessages.push('Please select a customer');
+                $('#customer_id').focus();
+                isValid = false;
             }
             
-            reader.readAsDataURL(file);
-            
-            // Validate file size (1MB = 1048576 bytes)
-            if (file.size > 1048576) {
-                alert('File size must be less than 1MB');
-                input.value = '';
-                preview.style.display = 'none';
-                return;
+            if($('#contact_person').val().trim() === '') {
+                errorMessages.push('Please enter contact person');
+                $('#contact_person').focus();
+                isValid = false;
             }
             
-            // Validate image dimensions
-            const img = new Image();
-            img.onload = function() {
-                if (this.width > 1000 || this.height > 1000) {
-                    alert('Image dimensions must be 1000px x 1000px or less');
-                    input.value = '';
-                    preview.style.display = 'none';
+            if($('#salesman_id').val() === '') {
+                errorMessages.push('Please select a sales engineer');
+                $('#salesman_id').focus();
+                isValid = false;
+            }
+            
+            // Validate items
+            let hasValidItems = false;
+            $('#itemsBody tr').each(function(index) {
+                const itemId = $(this).find('.item-select').val();
+                const quantity = $(this).find('.quantity').val();
+                const unitPrice = $(this).find('.unit-price').val();
+                
+                if(!itemId) {
+                    errorMessages.push(`Item ${index + 1}: Please select an item`);
                 }
-            };
-            img.src = URL.createObjectURL(file);
-        } else {
-            preview.style.display = 'none';
-        }
-    }
-    
-    function previewAdditionalImage(input) {
-        const preview = document.getElementById('additionalImagePreview');
-        const file = input.files[0];
-        
-        if (file) {
-            const reader = new FileReader();
+                
+                if(!quantity || parseFloat(quantity) <= 0) {
+                    errorMessages.push(`Item ${index + 1}: Please enter a valid quantity`);
+                }
+                
+                if(!unitPrice || parseFloat(unitPrice) < 0) {
+                    errorMessages.push(`Item ${index + 1}: Please enter a valid unit price`);
+                }
+                
+                if(itemId && quantity > 0 && unitPrice > 0) {
+                    hasValidItems = true;
+                }
+            });
             
-            reader.onload = function(e) {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
+            if(!hasValidItems) {
+                errorMessages.push('Please add at least one valid item');
             }
             
-            reader.readAsDataURL(file);
-            
-            // Validate file size (1MB = 1048576 bytes)
-            if (file.size > 1048576) {
-                alert('File size must be less than 1MB');
-                input.value = '';
-                preview.style.display = 'none';
-                return;
+            if(!isValid) {
+                e.preventDefault();
+                alert(errorMessages.join('\n'));
             }
-            
-            // Validate image dimensions
-            const img = new Image();
-            img.onload = function() {
-                if (this.width > 1000 || this.height > 1000) {
-                    alert('Image dimensions must be 1000px x 1000px or less');
-                    input.value = '';
-                    preview.style.display = 'none';
-                }
-            };
-            img.src = URL.createObjectURL(file);
-        } else {
-            preview.style.display = 'none';
-        }
-    }
-    
-    function calculateSalesPrice() {
-        const purchasePrice = parseFloat($('#purchase_price').val()) || 0;
-        const profitMargin = parseFloat($('#profit_margin').val()) || 0;
-        
-        if (purchasePrice > 0 && profitMargin > 0) {
-            const salesPrice = purchasePrice * (1 + (profitMargin / 100));
-            $('#sales_price').val(salesPrice.toFixed(2));
-        }
-    }
-    
-    function calculateDiscountedPrice() {
-        const price = parseFloat($('#price').val()) || 0;
-        const discount = parseFloat($('#discount').val()) || 0;
-        const discountType = $('#discount_type').val();
-        
-        let finalPrice = price;
-        
-        if (discount > 0) {
-            if (discountType === 'percentage') {
-                if (discount <= 100) {
-                    finalPrice = price - (price * (discount / 100));
-                }
-            } else {
-                if (discount <= price) {
-                    finalPrice = price - discount;
-                }
-            }
-        }
-        
-        // Update sales price if needed
-        if ($('#sales_price').val() === '' || $('#sales_price').val() === '0.00') {
-            $('#sales_price').val(finalPrice.toFixed(2));
-        }
-    }
-    
-    // Form validation
-    $('#itemForm').on('submit', function(e) {
-        let isValid = true;
-        
-        // Check required fields
-        if ($('#name').val().trim() === '') {
-            alert('Please enter item name');
-            $('#name').focus();
-            isValid = false;
-        }
-        
-        if ($('#item_group').val() === '') {
-            alert('Please select an item group');
-            $('#item_group').focus();
-            isValid = false;
-        }
-        
-        if ($('#price').val() === '' || parseFloat($('#price').val()) < 0) {
-            alert('Please enter a valid price');
-            $('#price').focus();
-            isValid = false;
-        }
-        
-        if ($('#purchase_price').val() === '' || parseFloat($('#purchase_price').val()) < 0) {
-            alert('Please enter a valid purchase price');
-            $('#purchase_price').focus();
-            isValid = false;
-        }
-        
-        if ($('#sales_price').val() === '' || parseFloat($('#sales_price').val()) < 0) {
-            alert('Please enter a valid sales price');
-            $('#sales_price').focus();
-            isValid = false;
-        }
-        
-        if ($('#tax_type').val() === '') {
-            alert('Please select a tax type');
-            $('#tax_type').focus();
-            isValid = false;
-        }
-        
-        if ($('#company_id').val() === '') {
-            alert('Please select a company');
-            $('#company_id').focus();
-            isValid = false;
-        }
-        
-        // Check if "other" fields are filled when selected
-        if ($('#brand').val() === 'other' && $('#other_brand').val().trim() === '') {
-            alert('Please enter brand name');
-            $('#other_brand').focus();
-            isValid = false;
-        }
-        
-        if ($('#unit').val() === 'other' && $('#other_unit').val().trim() === '') {
-            alert('Please enter unit name');
-            $('#other_unit').focus();
-            isValid = false;
-        }
-        
-        if ($('#category').val() === 'other' && $('#other_category').val().trim() === '') {
-            alert('Please enter category name');
-            $('#other_category').focus();
-            isValid = false;
-        }
-        
-        if (!isValid) {
-            e.preventDefault();
-        }
+        });
     });
 </script>
 @endpush

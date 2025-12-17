@@ -28,6 +28,7 @@ public function create()
     {
         // Check if coming from enquiry conversion
         $enquiryData = session('converted_enquiry');
+        $selectedCustomer = null; // Initialize here
         
         // Get customers (companies) - assuming Customer model is your companies
         $customers = Customer::where('created_by', Auth::user()->creatorId())
@@ -37,14 +38,9 @@ public function create()
         
         // If coming from enquiry, pre-select the customer
         if ($enquiryData) {
-          $selectedCustomer = null;
-
-if ($enquiryData) {
-    $selectedCustomer = Customer::where('name', $enquiryData['company_name'])
-        ->orWhere('email', $enquiryData['mail_id'])
-        ->first();
-}
-
+            $selectedCustomer = Customer::where('name', $enquiryData['company_name'])
+                ->orWhere('email', $enquiryData['mail_id'])
+                ->first();
         }
         
         $salesmen = User::where('type', 'sales enginner')
@@ -78,19 +74,18 @@ if ($enquiryData) {
             }
         }
         
-       return view('quotation.create', compact(
-    'customers',
-    'salesmen',
-    'items',
-    'quotationCode',
-    'enquiryData',
-    'selectedCustomer'
-));
+        return view('quotation.create', compact(
+            'customers',
+            'salesmen',
+            'items',
+            'quotationCode',
+            'enquiryData',
+            'selectedCustomer'
+        ));
     }
     
     return redirect()->back()->with('error', __('Permission denied.'));
 }
-
 
 
 
