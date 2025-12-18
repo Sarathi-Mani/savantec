@@ -282,7 +282,7 @@ class EnquiryController extends Controller
     }
 
     // Rest of your existing methods remain the same...
-  public function create()
+public function create()
 {
     if(\Auth::user()->can('enquiry_add'))
     {
@@ -308,13 +308,13 @@ class EnquiryController extends Controller
             ->get()
             ->pluck('name', 'id');
 
-        // Get items from Items model for dropdown
+        // Get items from Items model for dropdown - FIXED: Include image field
         $items = \App\Models\Items::where('deleted_at', NULL)
             ->when($user->type != 'super admin', function ($query) use ($user) {
                 return $query->where('created_by', $user->creatorId());
             })
             ->orderBy('name', 'asc')
-            ->get(['id', 'name', 'description']);
+            ->get(['id', 'name', 'description', 'image']); // ADD 'image' here
 
         // Get the last enquiry number and increment it
         $lastEnquiry = Enquiry::orderBy('id', 'desc')->first();
@@ -471,7 +471,7 @@ public function store(Request $request)
         }
     }
 
-  public function edit($id)
+public function edit($id)
 {
     if(\Auth::user()->can('enquiry_edit'))
     {
@@ -499,13 +499,13 @@ public function store(Request $request)
             ->get()
             ->pluck('name', 'id');
 
-        // Get items from Items model for dropdown
+        // Get items from Items model for dropdown - FIXED: Include image field
         $items = \App\Models\Items::where('deleted_at', NULL)
             ->when($user->type != 'super admin', function ($query) use ($user) {
                 return $query->where('created_by', $user->creatorId());
             })
             ->orderBy('name', 'asc')
-            ->get(['id', 'name', 'description']);
+            ->get(['id', 'name', 'description', 'image']); // ADD 'image' here
         
         return view('enquiry.edit', compact('enquiry', 'salesmen', 'companies', 'items'));
     }
@@ -514,7 +514,6 @@ public function store(Request $request)
         return redirect()->back()->with('error', __('Permission denied.'));
     }
 }
-
 
 
 // In EnquiryController.php - FIXED convertToQuotation method
