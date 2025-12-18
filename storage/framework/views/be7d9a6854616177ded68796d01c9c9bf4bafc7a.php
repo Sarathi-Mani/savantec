@@ -1,5 +1,10 @@
 
 
+
+<?php
+    use Illuminate\Support\Facades\Storage;
+?>
+
 <?php $__env->startSection('page-title'); ?>
     <?php echo e(__('Create Enquiry')); ?>
 
@@ -123,15 +128,18 @@
                         <?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                             <option value="<?php echo e($item->id); ?>" 
                                     data-description="<?php echo e($item->description); ?>"
-                                    data-image-url="<?php echo e($item->image ? asset('storage/' . $item->image) : ''); ?>"
+                                   data-image-url="<?php echo e($item->image ? Storage::url($item->image) : ''); ?>"
                                     data-has-image="<?php echo e($item->image ? 'true' : 'false'); ?>">
                                 <?php echo e($item->name); ?>
 
                             </option>
                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
+
+
                 </div>
-                <div class="form-group mt-3">
+
+                        <div class="form-group mt-3">
                     <label for="item_description_1" class="form-label"><?php echo e(__('Item Description')); ?> <span class="text-danger">*</span></label>
                     <textarea class="form-control item-description" id="item_description_1" name="items[1][description]" rows="3" placeholder="<?php echo e(__('Item description...')); ?>" required><?php echo e(old('items.1.description')); ?></textarea>
                     <small class="text-muted">Description will auto-fill when you select an item</small>
@@ -162,7 +170,6 @@
                             <div class="existing-image-preview" id="existingImagePreview_1" style="display: none;">
                                 <p class="small text-muted mb-1">Existing Item Image:</p>
                                 <img id="existingImage_1" src="" alt="Existing Image" style="max-width: 150px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px; padding: 3px;">
-                                <button type="button" class="btn btn-sm btn-info mt-1" onclick="testImageUrl('existingImage_1')">Test URL</button>
                             </div>
                             <div class="uploaded-image-preview" id="uploadedImagePreview_1" style="display: none;">
                                 <p class="small text-muted mb-1">Uploaded Image Preview:</p>
@@ -286,15 +293,6 @@
 <?php $__env->startPush('scripts'); ?>
 <script>
     $(document).ready(function() {
-        console.log('Enquiry form loaded');
-        
-        // Test function to check image URL
-        window.testImageUrl = function(imageId) {
-            const img = document.getElementById(imageId);
-            console.log('Testing image URL:', img.src);
-            window.open(img.src, '_blank');
-        };
-
         // Initialize Select2 for main dropdowns
         $('.select2').select2({
             width: '100%',
@@ -308,7 +306,7 @@
                 width: '100%',
                 placeholder: "Select an item",
                 allowClear: true,
-                tags: true,
+                tags: true, // Allow custom entries
                 createTag: function (params) {
                     return {
                         id: params.term,
@@ -375,7 +373,7 @@
             previewImage(this, 'imagePreview_' + index);
         });
 
-        // When item is selected from dropdown - DEBUG VERSION
+        // When item is selected from dropdown
         $(document).on('change', '.item-select', function() {
             const index = $(this).data('index');
             const selectedOption = $(this).find('option:selected');
@@ -383,25 +381,11 @@
             const imageUrl = selectedOption.data('image-url');
             const hasImage = selectedOption.data('has-image') === 'true';
             
-            console.log('================== ITEM SELECTED ==================');
-            console.log('Index:', index);
-            console.log('Item ID:', $(this).val());
-            console.log('Description:', description);
-            console.log('Image URL:', imageUrl);
-            console.log('Has Image:', hasImage);
-            console.log('Selected Option HTML:', selectedOption[0].outerHTML);
-            
-            // Log all data attributes
-            const allData = selectedOption.data();
-            console.log('All data attributes:', allData);
-            
             // Auto-fill description if available
             if (description && description.trim() !== '') {
                 $('#item_description_' + index).val(description);
-                console.log('Description filled');
             } else {
                 $('#item_description_' + index).val('');
-                console.log('No description available');
             }
             
             // Show/hide existing image preview
@@ -410,43 +394,12 @@
             const uploadedImagePreview = $('#uploadedImagePreview_' + index);
             
             if (hasImage && imageUrl) {
-                console.log('Attempting to show image preview');
-                console.log('Image URL to set:', imageUrl);
-                
-                // Set image source
+                // Show existing item image
                 existingImage.attr('src', imageUrl);
-                
-                // Add error handler for image
-                existingImage.on('error', function() {
-                    console.error('Image failed to load:', imageUrl);
-                    console.log('Trying alternative path...');
-                    
-                    // Try alternative path without 'storage/'
-                    const altImageUrl = imageUrl.replace('/storage/', '/');
-                    existingImage.attr('src', altImageUrl);
-                    console.log('Trying alternative URL:', altImageUrl);
-                    
-                    // If still fails, try direct URL
-                    existingImage.on('error', function() {
-                        console.error('Alternative image also failed to load');
-                        existingImagePreview.hide();
-                    });
-                });
-                
-                // Add load handler
-                existingImage.on('load', function() {
-                    console.log('Image loaded successfully:', imageUrl);
-                    existingImagePreview.show();
-                    uploadedImagePreview.hide();
-                });
-                
-                // Show the preview
                 existingImagePreview.show();
-                uploadedImagePreview.hide();
-                
-                console.log('Image preview should be visible now');
+                uploadedImagePreview.hide(); // Hide uploaded image if showing
             } else {
-                console.log('No image to show - hiding preview');
+                // Hide existing image preview
                 existingImagePreview.hide();
             }
             
@@ -454,11 +407,8 @@
             if ($(this).val() && !$(this).find('option[value="' + $(this).val() + '"]').length) {
                 $('#item_description_' + index).val('');
                 $('#item_description_' + index).attr('placeholder', 'Enter description for the new item');
-                existingImagePreview.hide();
-                console.log('Custom entry detected');
+                existingImagePreview.hide(); // Hide image for custom entries
             }
-            
-            console.log('================== END ITEM SELECTION ==================');
         });
 
         // Add item functionality
@@ -487,7 +437,7 @@
                                     <?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                         <option value="<?php echo e($item->id); ?>" 
                                                 data-description="<?php echo e($item->description); ?>"
-                                                data-image-url="<?php echo e($item->image ? asset('storage/' . $item->image) : ''); ?>"
+                                               data-image-url="<?php echo e($item->image ? Storage::url($item->image) : ''); ?>"
                                                 data-has-image="<?php echo e($item->image ? 'true' : 'false'); ?>">
                                             <?php echo e($item->name); ?>
 
@@ -526,7 +476,6 @@
                                         <div class="existing-image-preview" id="existingImagePreview_${itemCount}" style="display: none;">
                                             <p class="small text-muted mb-1">Existing Item Image:</p>
                                             <img id="existingImage_${itemCount}" src="" alt="Existing Image" style="max-width: 150px; max-height: 150px; border: 1px solid #ddd; border-radius: 4px; padding: 3px;">
-                                            <button type="button" class="btn btn-sm btn-info mt-1" onclick="testImageUrl('existingImage_${itemCount}')">Test URL</button>
                                         </div>
                                         <div class="uploaded-image-preview" id="uploadedImagePreview_${itemCount}" style="display: none;">
                                             <p class="small text-muted mb-1">Uploaded Image Preview:</p>
@@ -548,8 +497,6 @@
             
             // Show remove button for all items when more than 1
             $('.remove-item-btn').show();
-            
-            console.log('New item added with index:', itemCount);
         });
 
         // Remove item functionality
@@ -566,8 +513,6 @@
             
             // Renumber remaining items
             renumberItems();
-            
-            console.log('Item removed, total items now:', $('.item-row').length);
         });
 
         // Function to renumber items
@@ -628,7 +573,6 @@
             
             // Update global counter
             itemCount = newIndex;
-            console.log('Items renumbered, new count:', itemCount);
         }
 
         // Form validation
@@ -680,21 +624,6 @@
             return true;
         });
         
-        // Debug: Check all option data attributes on load
-        console.log('Checking all item options on page load:');
-        $('.item-select option').each(function(index) {
-            const $option = $(this);
-            if ($option.val()) {
-                console.log(`Option ${index}:`, {
-                    value: $option.val(),
-                    text: $option.text(),
-                    description: $option.data('description'),
-                    imageUrl: $option.data('image-url'),
-                    hasImage: $option.data('has-image')
-                });
-            }
-        });
-        
         // Initialize existing image previews if any
         $('.item-select').each(function() {
             const index = $(this).data('index');
@@ -703,47 +632,11 @@
             const hasImage = selectedOption.data('has-image') === 'true';
             
             if (hasImage && imageUrl) {
-                console.log('Initializing preview for item', index, 'with URL:', imageUrl);
                 $('#existingImage_' + index).attr('src', imageUrl);
                 $('#existingImagePreview_' + index).show();
             }
         });
-        
-        // Add a test button for debugging
-        $('body').append(`
-            <div style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;">
-                <button onclick="testAllImages()" class="btn btn-warning btn-sm">Debug Images</button>
-            </div>
-        `);
     });
-    
-    // Global debug function
-    window.testAllImages = function() {
-        console.log('=== DEBUGGING ALL IMAGES ===');
-        $('.existing-image-preview img').each(function(index) {
-            const $img = $(this);
-            console.log(`Image ${index}:`, {
-                id: $img.attr('id'),
-                src: $img.attr('src'),
-                visible: $img.is(':visible'),
-                parentVisible: $img.parent().is(':visible')
-            });
-        });
-        
-        // Test if storage link exists
-        fetch('/storage/items/1765727407_item.jpg')
-            .then(response => {
-                console.log('Image test response:', response.status, response.statusText);
-                if (response.ok) {
-                    console.log('✓ Storage link works!');
-                } else {
-                    console.log('✗ Storage link failed:', response.status);
-                }
-            })
-            .catch(error => {
-                console.error('Image test error:', error);
-            });
-    };
 </script>
 <?php $__env->stopPush(); ?>
 <?php echo $__env->make('layouts.admin', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH C:\Users\ADMIN\Projects\savantec-github\resources\views/enquiry/create.blade.php ENDPATH**/ ?>

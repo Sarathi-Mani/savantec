@@ -135,14 +135,7 @@
 
                 </div>
 
-                {{-- Add this temporarily at the top of your form to debug --}}
-@php
-    // Debug: Check what data is in $items
-    foreach($items as $item) {
-        echo "Item: {$item->name}, Image: {$item->image}<br>";
-    }
-@endphp
-                <div class="form-group mt-3">
+                        <div class="form-group mt-3">
                     <label for="item_description_1" class="form-label">{{ __('Item Description') }} <span class="text-danger">*</span></label>
                     <textarea class="form-control item-description" id="item_description_1" name="items[1][description]" rows="3" placeholder="{{ __('Item description...') }}" required>{{ old('items.1.description') }}</textarea>
                     <small class="text-muted">Description will auto-fill when you select an item</small>
