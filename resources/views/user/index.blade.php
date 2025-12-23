@@ -5,6 +5,7 @@
     
     // Determine if user is super admin
     $isSuperAdmin = \Auth::user()->type == 'super admin';
+    $isCompanyAdmin = \Auth::user()->type == 'company';
 @endphp
 
 @section('page-title')
@@ -29,12 +30,13 @@
         :columns="[
             ['index' => 0, 'name' => 'Name', 'description' => 'User name and avatar'],
             ['index' => 1, 'name' => 'Email', 'description' => 'Email address'],
-            ['index' => 2, 'name' => 'Type', 'description' => 'User type/role'],
-            ['index' => 3, 'name' => 'Last Login', 'description' => 'Last login date'],
-            ['index' => 4, 'name' => 'Status', 'description' => 'Active/Inactive status'],
-            ['index' => 5, 'name' => 'Plan', 'description' => 'Subscription plan'],
-            ['index' => 6, 'name' => 'Plan Expired', 'description' => 'Plan expiry date'],
-            ['index' => 7, 'name' => 'Actions', 'description' => 'Edit/Delete actions']
+            ['index' => 2, 'name' => 'Mobile', 'description' => 'Mobile number'],
+            ['index' => 3, 'name' => 'Type', 'description' => 'User type/role'],
+            ['index' => 4, 'name' => 'Created On', 'description' => 'Created on date'],
+            ['index' => 5, 'name' => 'Status', 'description' => 'Active/Inactive status'],
+            ['index' => 6, 'name' => 'Plan', 'description' => 'Subscription plan'],
+            ['index' => 7, 'name' => 'Plan Expired', 'description' => 'Plan expiry date'],
+            ['index' => 8, 'name' => 'Actions', 'description' => 'Edit/Delete actions']
         ]"
     />
 
@@ -78,10 +80,14 @@
                         <table class="table w-100 " id="userTable">
                             <thead>
                                 <tr>
+                                    @if($isSuperAdmin || $isCompanyAdmin)
+                                        <th>{{__('Company')}}</th>
+                                    @endif
                                     <th>{{__('Name')}}</th>
                                     <th>{{__('Email')}}</th>
-                                    <th>{{__('Type')}}</th>
-                                    <th>{{__('Last Login')}}</th>
+                                    <th>{{__('Mobile')}}</th>
+                                    <th>{{__('Role')}}</th>
+                                    <th>{{__('Created On')}}</th>
                                     <th>{{__('Status')}}</th>
                                     @if($isSuperAdmin)
                                         <th>{{__('Plan')}}</th>
@@ -93,6 +99,39 @@
                             <tbody>
                                 @forelse($users as $user)
                                     <tr>
+                                        @if($isSuperAdmin || $isCompanyAdmin)
+                                            <td>
+                                                     @php
+                                                        $companyNames = [];
+                                                        // Check if company_id is JSON array
+                                                        if (is_string($user->company_id) && strpos($user->company_id, '[') !== false) {
+                                                            $companyIds = json_decode($user->company_id, true);
+                                                            if (is_array($companyIds)) {
+                                                                foreach ($companyIds as $companyId) {
+                                                                    $company = \App\Models\User::find($companyId);
+                                                                    if ($company) {
+                                                                        $companyNames[] = $company->name;
+                                                                    }
+                                                                }
+                                                            }
+                                                        } else {
+                                                            // If it's a single ID
+                                                            $company = \App\Models\User::find($user->company_id);
+                                                            if ($company) {
+                                                                $companyNames[] = $company->name;
+                                                            }
+                                                        }
+                                                    @endphp
+                                                    @if(!empty($companyNames))
+                                                        {{ implode(', ', $companyNames) }}
+                                                    @else
+                                                        -
+                                                    @endif
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
+                                     
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 @php
@@ -140,12 +179,15 @@
                                             </div>
                                         </td>
                                         <td>{{ $user->email }}</td>
+                                        <td>{{ $user->mobile }}</td>
                                         <td>
                                             <div class="badge bg-primary p-2 px-3 rounded">
                                                 {{ ucfirst($user->type) }}
                                             </div>
                                         </td>
-                                        <td>{{ !empty($user->last_login_at) ? $user->last_login_at : '-' }}</td>
+                                        <td>
+                                            {{ !empty($user->created_at) ? $user->created_at->format('Y-m-d') : '-' }}
+                                        </td>
                                         <td>
                                             @if($user->delete_status == 0)
                                                 <span class="badge bg-danger">{{__('Inactive')}}</span>
@@ -194,7 +236,17 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="{{ $isSuperAdmin ? 8 : 6 }}" class="text-center">
+                                        @php
+                                            $colspan = 6;
+                                            if ($isSuperAdmin || $isCompanyAdmin) {
+                                                $colspan++; // Add 1 for Company column
+                                            }
+                                            if ($isSuperAdmin) {
+                                                $colspan += 2; // Add 2 for Plan and Plan Expired columns
+                                            }
+                                            $colspan++; // Add 1 for Actions column
+                                        @endphp
+                                        <td colspan="{{ $colspan }}" class="text-center">
                                             <div class="alert alert-info d-inline-flex align-items-center">
                                                 <i class="ti ti-info-circle me-2"></i>
                                                 {{ __('No users found.') }}

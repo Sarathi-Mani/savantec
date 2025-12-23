@@ -174,69 +174,6 @@
 @push('styles')
 <!-- Select2 CSS -->
 <link href="{{ asset('css/select2.min.css') }}" rel="stylesheet" />
-<style>
-    .select2-container .select2-selection--single {
-        height: 38px;
-        border: 1px solid #ced4da;
-    }
-    .select2-container .select2-selection--multiple {
-        min-height: 38px;
-        border: 1px solid #ced4da;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 36px;
-        color: #495057;
-    }
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 36px;
-    }
-    .select2-container--default .select2-selection--multiple .select2-selection__choice {
-        background-color: #007bff;
-        border-color: #007bff;
-        color: white;
-    }
-    
-    /* Search box styling */
-    .select2-search--dropdown {
-        display: block !important;
-        padding: 8px;
-        background: #f8f9fa;
-        border-bottom: 1px solid #dee2e6;
-    }
-    
-    .select2-search--dropdown .select2-search__field {
-        width: 100% !important;
-        padding: 8px 12px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        font-size: 14px;
-    }
-    
-    .select2-search--dropdown .select2-search__field:focus {
-        border-color: #80bdff;
-        outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-    
-    /* Ensure dropdown has enough width */
-    .select2-container .select2-dropdown {
-        min-width: 300px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    /* Dropdown options styling */
-    .select2-results__option {
-        padding: 8px 12px;
-    }
-    
-    .select2-results__option--highlighted {
-        background-color: #007bff !important;
-        color: white !important;
-    }
-</style>
-@endpush
 @push('scripts')
 <!-- jQuery -->
 <script src="{{ asset('js/jquery.min.js') }}"></script>

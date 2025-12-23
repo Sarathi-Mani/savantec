@@ -31,28 +31,49 @@ use Spatie\Permission\Models\Role;
 class UserController extends Controller
 {
 
-    public function index()
+public function index()
+{
+    $user = \Auth::user();
+    if(\Auth::user()->can('manage user'))
     {
-        $user = \Auth::user();
-        if(\Auth::user()->can('manage user'))
+        if(\Auth::user()->type == 'super admin')
         {
-            if(\Auth::user()->type == 'super admin')
-            {
-                $users = User::where('created_by', '=', $user->creatorId())->where('type', '=', 'company')->where('is_active',1)->get();
-            }
-            else
-            {
-                $users = User::where('created_by', '=', $user->creatorId())->where('type', '!=', 'client')->where('is_active',1)->get();
-            }
-
-            return view('user.index')->with('users', $users);
+            $users = User::where('created_by', '=', $user->creatorId())
+                        ->where('type', '=', 'company')
+                        ->where('is_active',1)
+                        ->orderByDesc('created_at')
+                        ->get();
         }
         else
         {
-            return redirect()->back();
+            $users = User::where('created_by', '=', $user->creatorId())
+                        ->where('type', '!=', 'client')
+                        ->where('is_active',1)
+                        ->orderByDesc('created_at')
+                        ->get();
+            
+            // Also include users from your company
+            if ($user->type == 'company' && !empty($user->company_id)) {
+                $companyIds = json_decode($user->company_id, true);
+                if (is_array($companyIds)) {
+                    $companyUsers = User::whereIn('id', $companyIds)
+                                        ->where('is_active', 1)
+                                        ->orderByDesc('created_at')
+                                        ->get();
+                    
+                    // Merge users
+                    $users = $users->merge($companyUsers)->unique('id');
+                }
+            }
         }
 
+        return view('user.index')->with('users', $users);
     }
+    else
+    {
+        return redirect()->back();
+    }
+}
     
     public function create()
     {
@@ -925,6 +946,35 @@ public function editprofile(Request $request)
         $users = LoginDetail::where('user_id', $id)->delete();
         return redirect()->back()->with('success', 'User successfully deleted.');
     }
+
+
+    public function toggleStatus(User $user)
+{
+    if (!\Auth::user()->can('edit user')) {
+        return response()->json([
+            'success' => false,
+            'message' => __('Permission denied.')
+        ], 403);
+    }
+
+    try {
+        // Toggle delete_status (0 = Inactive, 1 = Active)
+        $user->delete_status = $user->delete_status == 0 ? 1 : 0;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => __('User status updated successfully.'),
+            'new_status' => $user->delete_status
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => __('Error updating status: ') . $e->getMessage()
+        ], 500);
+    }
+}
 
     //end for user login details
 

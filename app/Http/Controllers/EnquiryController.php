@@ -81,15 +81,22 @@ class EnquiryController extends Controller
             
             // Get salesmen
             $salesmen = User::where('is_active', 1)
-                ->whereHas('roles', function ($q) {
-                    $q->where('name', 'sales engineer');
-                })
+                ->where('type', 'sales enginner')
                 ->when($user->type != 'super admin', function ($query) use ($user) {
                     return $query->where('created_by', $user->creatorId());
                 })
                 ->get()
                 ->pluck('name', 'id');
                 
+
+
+// $salesmen = User::where('is_active', 1)
+//     ->where('type', 'sales enginner')
+//     ->when($user->type != 'super admin', function ($query) use ($user) {
+//         return $query->where('created_by', $user->creatorId());
+//     })
+//     ->pluck('name', 'id');
+
             
             // Check if request is AJAX
             if ($request->ajax()) {
