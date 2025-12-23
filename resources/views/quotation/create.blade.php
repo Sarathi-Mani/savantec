@@ -103,8 +103,7 @@
                                         <div class="d-flex justify-content-between align-items-center">
                                             <h6 class="mb-0">{{ __('Customer Information') }}</h6>
                                             <a href="{{ route('customer.create') }}" 
-                                               class="btn btn-sm btn-outline-primary add-new-link"
-                                               target="_blank">
+                                               class="btn btn-sm btn-outline-primary add-new-link">
                                                 <i class="ti ti-plus"></i> {{ __('Add New Customer') }}
                                             </a>
                                         </div>
@@ -259,8 +258,7 @@
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0">{{ __('Items') }}</h6>
                                     <a href="{{ route('items.create') }}" 
-                                       class="btn btn-sm btn-outline-primary add-new-link"
-                                       target="_blank">
+                                       class="btn btn-sm btn-outline-primary add-new-link">
                                         <i class="ti ti-plus"></i> {{ __('Add New Item') }}
                                     </a>
                                 </div>

@@ -10,16 +10,28 @@
 @endsection
 
 @section('action-btn')
-    @can('quotation_add')
-    <div class="float-end">
-        <a href="{{ route('quotation.create') }}" 
-           class="btn btn-sm btn-primary" 
-           data-bs-toggle="tooltip" 
-           title="{{__('Create New Quotation')}}">
-            <i class="ti ti-plus"></i> {{__('New Quotation')}}
-        </a>
-    </div>
-    @endcan
+    {{-- Use the export buttons component --}}
+    <x-export-buttons 
+        tableId="quotationsTable"
+        :createButton="true"
+        createRoute="{{ route('quotation.create') }}"
+        createPermission="quotation_add"
+        createLabel="New Quotation"
+        createIcon="ti-plus"
+        createTooltip="Create New Quotation"
+        :columns="[
+            ['index' => 0, 'name' => 'Serial No', 'description' => 'Serial number with toggle button'],
+            ['index' => 1, 'name' => 'Quotation Date', 'description' => 'Quotation creation date'],
+            ['index' => 2, 'name' => 'Expiry Date', 'description' => 'Quotation expiry date'],
+            ['index' => 3, 'name' => 'Quotation Code', 'description' => 'Unique quotation code'],
+            ['index' => 4, 'name' => 'Reference No', 'description' => 'Reference number'],
+            ['index' => 5, 'name' => 'Customer', 'description' => 'Customer name'],
+            ['index' => 6, 'name' => 'Salesman', 'description' => 'Salesman name'],
+            ['index' => 7, 'name' => 'Total', 'description' => 'Grand total amount'],
+            ['index' => 8, 'name' => 'Status', 'description' => 'Quotation status'],
+            ['index' => 9, 'name' => 'Actions', 'description' => 'View/Edit/Delete actions']
+        ]"
+    />
 @endsection
 
 @section('content')
@@ -44,17 +56,10 @@
                     @endif
                     
                     <div class="table-responsive">
-                        <table class="table datatable table-hover" id="quotationsTable">
+                        <table class="table table-hover" id="quotationsTable">
                             <thead>
                                 <tr>
                                     <th width="50" class="text-center">
-                                        <button type="button" 
-                                                class="btn btn-sm btn-link p-0 m-0 text-decoration-none" 
-                                                id="toggleColumnsBtn"
-                                                data-bs-toggle="tooltip"
-                                                title="Toggle extra columns">
-                                            <i class="ti ti-plus ti-xs"></i>
-                                        </button>
                                         {{__('#')}}
                                     </th>
                                     <th>{{__('Quotation Date')}}</th>
@@ -62,7 +67,7 @@
                                     <th>{{__('Quotation Code')}}</th>
                                     <th class="extra-column" style="display: none;">{{__('Reference No')}}</th>
                                     <th>{{__('Customer')}}</th>
-                                    <th class="extra-column" style="display: none;">{{__('Salesman')}}</th>
+                                    <th>{{__('Salesman')}}</th>
                                     <th class="text-end">{{__('Total')}}</th>
                                     <th>{{__('Status')}}</th>
                                     <th width="120" class="text-center">{{__('Actions')}}</th>
@@ -70,14 +75,15 @@
                             </thead>
                             <tbody>
                                 @forelse($quotations as $key => $quotation)
+                                    @php
+                                        // Get salesman from users table
+                                        $salesman = \App\Models\User::find($quotation->salesman_id);
+                                        $salesmanName = $salesman ? $salesman->name : 'N/A';
+                                        $salesmanMobile = $salesman ? $salesman->mobile : '';
+                                        $salesmanEmail = $salesman ? $salesman->email : '';
+                                    @endphp
                                     <tr>
                                         <td class="text-center">
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-link p-0 m-0 text-decoration-none toggle-row-btn"
-                                                    data-bs-toggle="tooltip"
-                                                    title="Show/hide extra details">
-                                                <i class="ti ti-plus ti-xs"></i>
-                                            </button>
                                             {{ $key + 1 }}
                                         </td>
                                         <td>
@@ -112,19 +118,24 @@
                                                 @if($quotation->reference_no)
                                                     <div><strong>Ref No:</strong> {{ $quotation->reference_no }}</div>
                                                 @endif
-                                                @php
-                                                    $salesman = \App\Models\User::find($quotation->salesman_id);
-                                                @endphp
-                                                @if($salesman)
-                                                    <div><strong>Salesman:</strong> {{ $salesman->name }}</div>
+                                                @if($quotation->contact_person)
+                                                    <div><strong>Contact:</strong> {{ $quotation->contact_person }}</div>
                                                 @endif
                                             </div>
                                         </td>
-                                        <td class="extra-column" style="display: none;">
-                                            @php
-                                                $salesman = \App\Models\User::find($quotation->salesman_id);
-                                            @endphp
-                                            {{ $salesman->name ?? 'N/A' }}
+                                        <td>
+                                            @if($salesman)
+                                                <div class="salesman-info">
+                                                    <div class="fw-semibold">{{ $salesmanName }}</div>
+                                                    @if($salesmanMobile)
+                                                        <div class="text-muted small mt-1">
+                                                            {{ $salesmanMobile }}
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @else
+                                                <span class="text-muted">N/A</span>
+                                            @endif
                                         </td>
                                         <td class="text-end fw-bold">
                                             ₹{{ number_format($quotation->grand_total, 2) }}
@@ -276,6 +287,7 @@
     .btn-icon-only:hover {
         background: #f8f9fa !important;
         border-color: #adb5bd !important;
+        color: #495057 !important;
     }
     
     /* Style dropdown menu */
@@ -317,6 +329,16 @@
         line-height: 1.2 !important;
     }
     
+    /* Salesman info styling */
+    .salesman-info {
+        min-width: 120px;
+    }
+    
+    .salesman-info .small {
+        font-size: 0.75rem !important;
+        line-height: 1.2;
+    }
+    
     /* Toggle button styling */
     .toggle-row-btn, #toggleColumnsBtn {
         width: 24px !important;
@@ -349,7 +371,7 @@
     #quotationsTable th:nth-child(4) { width: 140px !important; }
     #quotationsTable th:nth-child(5) { width: 120px !important; }
     #quotationsTable th:nth-child(6) { width: 150px !important; }
-    #quotationsTable th:nth-child(7) { width: 120px !important; }
+    #quotationsTable th:nth-child(7) { width: 180px !important; }
     #quotationsTable th:nth-child(8) { width: 100px !important; }
     #quotationsTable th:nth-child(9) { width: 100px !important; }
     #quotationsTable th:nth-child(10) { width: 120px !important; min-width: 100px !important; }
@@ -371,10 +393,21 @@
         transform: rotate(45deg);
         color: #0d6efd;
     }
+    
+    /* Mobile number icon */
+    .ti-phone {
+        font-size: 10px !important;
+    }
 </style>
 @endpush
 
 @push('scripts')
+    <x-export-scripts 
+        tableId="quotationsTable"
+        searchPlaceholder="Search quotations..."
+        pdfTitle="Quotations"
+    />
+    
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
@@ -465,79 +498,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
-    // Initialize DataTable
-    if ($.fn.dataTable && $('#quotationsTable').length) {
-        $('#quotationsTable').DataTable({
-            "pageLength": 10,
-            "lengthMenu": [[10, 25, 50, -1], [10, 25, 50, "All"]],
-            "order": [[1, 'desc']],
-            "columnDefs": [
-                {
-                    "targets": 9, // Actions column (index 9)
-                    "orderable": false,
-                    "searchable": false
-                },
-                {
-                    "targets": [0, 8], // Serial number and status columns
-                    "orderable": true,
-                    "searchable": true
-                }
-            ],
-            "language": {
-                "search": "",
-                "searchPlaceholder": "Search quotations...",
-                "lengthMenu": "_MENU_",
-                "info": "Showing _START_ to _END_ of _TOTAL_ entries",
-                "infoEmpty": "Showing 0 to 0 of 0 entries",
-                "paginate": {
-                    "first": "First",
-                    "last": "Last",
-                    "next": "Next",
-                    "previous": "Previous"
-                }
-            },
-            "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-                   '<"row"<"col-sm-12"tr>>' +
-                   '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-            "drawCallback": function(settings) {
-                // Reinitialize tooltips and dropdowns after DataTable redraws
-                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl);
-                });
-                
-                var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-                var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
-                    return new bootstrap.Dropdown(dropdownToggleEl);
-                });
-                
-                // Reattach toggle row event listeners
-                document.querySelectorAll('.toggle-row-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const row = this.closest('tr');
-                        const extraDetails = row.querySelector('.extra-details');
-                        
-                        if (extraDetails) {
-                            const isVisible = extraDetails.style.display !== 'none';
-                            extraDetails.style.display = isVisible ? 'none' : 'block';
-                            
-                            const icon = this.querySelector('i');
-                            if (isVisible) {
-                                icon.classList.remove('ti-minus');
-                                icon.classList.add('ti-plus');
-                                this.classList.remove('active');
-                            } else {
-                                icon.classList.remove('ti-plus');
-                                icon.classList.add('ti-minus');
-                                this.classList.add('active');
-                            }
-                        }
-                    });
-                });
-            }
-        });
-    }
 });
 </script>
 @endpush

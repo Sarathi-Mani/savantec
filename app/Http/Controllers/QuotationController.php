@@ -22,6 +22,87 @@ class QuotationController extends Controller
      */
   // In QuotationController.php, update the create method:
 
+
+  public function exportCSV(Request $request)
+    {
+        if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')
+        {
+            $fileName = 'quotations_' . date('Y-m-d') . '.csv';
+            
+            $headers = array(
+                "Content-type"        => "text/csv; charset=UTF-8",
+                "Content-Disposition" => "attachment; filename=$fileName",
+                "Pragma"              => "no-cache",
+                "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+                "Expires"             => "0"
+            );
+
+            $callback = function() {
+                $handle = fopen('php://output', 'w');
+                
+                // Add UTF-8 BOM to handle special characters
+                fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+                
+                // Headers - remove currency symbol
+                fputcsv($handle, [
+                    'SL No',
+                    'Quotation Date',
+                    'Expiry Date', 
+                    'Quotation Code',
+                    'Reference No',
+                    'Customer',
+                    'Salesman',
+                    'Total Amount',
+                    'Status',
+                    'Created At'
+                ]);
+
+                // Get data
+                $quotations = Quotation::where('company_id', Auth::user()->creatorId())
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                
+                $counter = 1;
+                
+                foreach ($quotations as $quotation) {
+                    // Get salesman name
+                    $salesman = \App\Models\User::find($quotation->salesman_id);
+                    
+                    // Format date
+                    $quotationDate = $quotation->quotation_date ? 
+                        \Carbon\Carbon::parse($quotation->quotation_date)->format('d-m-Y') : '';
+                    
+                    $expireDate = $quotation->expire_date ? 
+                        \Carbon\Carbon::parse($quotation->expire_date)->format('d-m-Y') : '';
+                    
+                    // Format amount WITHOUT currency symbol - just the number
+                    $totalAmount = number_format($quotation->grand_total, 2);
+                    
+                    fputcsv($handle, [
+                        $counter++,
+                        $quotationDate,
+                        $expireDate,
+                        $quotation->quotation_code,
+                        $quotation->reference_no ?? '',
+                        $quotation->customer_name,
+                        $salesman->name ?? 'N/A',
+                        $totalAmount, // Number only, no currency symbol
+                        ucfirst($quotation->status),
+                        $quotation->created_at->format('d-m-Y')
+                    ]);
+                }
+
+                fclose($handle);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        }
+        
+        return redirect()->back()->with('error', __('Permission denied.'));
+    }
+
+    
+
 public function create()
 {
     if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')
