@@ -254,6 +254,10 @@ class PermissionSeeder extends Seeder
             'quotation_add',
             'quotation_edit',
             'quotation_delete',
+            'print quotation',
+            'convert quotation',
+            'convert to delivery challan',
+             'show all users quotations',
             'show_all_users_quotations',
             
             // Sales Return Module

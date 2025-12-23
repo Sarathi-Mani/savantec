@@ -503,6 +503,7 @@ Route::get('/check-assigned-perms', function() {
         ], function () {
         Route::get('customer/{id}/show', [CustomerController::class, 'show'])->name('customer.show');
         Route::resource('customer', CustomerController::class);
+        Route::get('customer/create', [CustomerController::class, 'create'])->name('customer.create');
     }
     );
 
@@ -1847,15 +1848,32 @@ Route::get('enquiry/print', [EnquiryController::class, 'print'])->name('enquiry.
 // Quotation Routes
 Route::get('quotation/datatable', [QuotationController::class, 'datatable'])->name('quotation.datatable');
 
+    Route::post('/quotation/get-customer-details', [QuotationController::class, 'getCustomerDetails'])->name('quotation.get-customer-details');
+Route::post('/quotation/get-contact-persons', [QuotationController::class, 'getContactPersons'])->name('quotation.get-contact-persons');
+Route::post('/quotation/get-item-price', [QuotationController::class, 'getItemPrice'])->name('quotation.get-item-price');
+Route::post('/quotation/get-gst-type', [QuotationController::class, 'getGstType'])->name('quotation.get-gst-type');
+
+
+Route::resource('quotation', QuotationController::class)->middleware(['auth', 'XSS', 'revalidate']);
+Route::get('quotations', [QuotationController::class, 'index'])->name('quotations.index');
+Route::get('quotation/{quotation}/send', [QuotationController::class, 'sendQuotation'])->name('quotation.send');
+Route::post('quotation/get-gst-type', [QuotationController::class, 'getGstType'])->name('quotation.get-gst-type'); 
+   Route::post('/get-customer-details', [QuotationController::class, 'getCustomerDetails'])->name('quotation.get-customer-details');
+ // Add these routes to your web.php file
+Route::get('quotation/{id}/print', [QuotationController::class, 'print'])->name('quotation.print');
+Route::get('quotation/{id}/pdf', [QuotationController::class, 'pdf'])->name('quotation.pdf');
+Route::get('quotation/{id}/convert-to-invoice', [QuotationController::class, 'convertToInvoice'])->name('quotation.convertToInvoice');
+Route::get('quotation/{id}/convert-to-dc', [QuotationController::class, 'convertToDC'])->name('quotation.convertToDC');
+
+
+// Brands Routes
+Route::resource('brands', BrandController::class);
+
  Route::resource('items', ItemController::class);
     Route::get('items/{id}/show', [ItemController::class, 'show'])->name('items.show');
     Route::get('items/get-items', [ItemController::class, 'getItems'])->name('items.get-items');
     Route::get('items/{id}/details', [ItemController::class, 'getItemDetails'])->name('items.details');
     Route::get('items/export', [ItemController::class, 'export'])->name('items.export');
-
-    
-// Brands Routes
-Route::resource('brands', BrandController::class);
 
 // Additional brand routes
 Route::get('brands/export', [BrandController::class, 'export'])->name('brands.export');
@@ -1864,15 +1882,6 @@ Route::get('brands/get-brands', [BrandController::class, 'getBrands'])->name('br
 Route::post('brands/check-name', [BrandController::class, 'checkBrandName'])->name('brands.check-name');
 Route::get('brands/statistics', [BrandController::class, 'getStatistics'])->name('brands.statistics');
 
-Route::resource('quotation', QuotationController::class)->middleware(['auth', 'XSS', 'revalidate']);
-Route::get('quotations', [QuotationController::class, 'index'])->name('quotations.index');
-Route::get('quotation/{quotation}/send', [QuotationController::class, 'sendQuotation'])->name('quotation.send');
-Route::post('quotation/get-gst-type', [QuotationController::class, 'getGstType'])->name('quotation.get-gst-type');    Route::post('/get-customer-details', [QuotationController::class, 'getCustomerDetails'])->name('quotation.get-customer-details');
- // Add these routes to your web.php file
-Route::get('quotation/{id}/print', [QuotationController::class, 'print'])->name('quotation.print');
-Route::get('quotation/{id}/pdf', [QuotationController::class, 'pdf'])->name('quotation.pdf');
-Route::get('quotation/{id}/convert-to-invoice', [QuotationController::class, 'convertToInvoice'])->name('quotation.convertToInvoice');
-Route::get('quotation/{id}/convert-to-dc', [QuotationController::class, 'convertToDC'])->name('quotation.convertToDC');
 
     Route::post('setting/offerlatter/{lang?}', [SystemController::class, 'offerletterupdate'])->name('offerlatter.update');
     Route::get('setting/offerlatter', [SystemController::class, 'companyIndex'])->name('get.offerlatter.language');
