@@ -42,6 +42,7 @@ public function index()
                         ->where('type', '=', 'company')
                         ->where('is_active',1)
                         ->orderByDesc('created_at')
+                        ->orderByDesc('id') // Additional ordering for consistency
                         ->get();
         }
         else
@@ -50,6 +51,7 @@ public function index()
                         ->where('type', '!=', 'client')
                         ->where('is_active',1)
                         ->orderByDesc('created_at')
+                        ->orderByDesc('id') // Additional ordering for consistency
                         ->get();
             
             // Also include users from your company
@@ -59,6 +61,7 @@ public function index()
                     $companyUsers = User::whereIn('id', $companyIds)
                                         ->where('is_active', 1)
                                         ->orderByDesc('created_at')
+                                        ->orderByDesc('id')
                                         ->get();
                     
                     // Merge users

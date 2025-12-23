@@ -29,7 +29,59 @@
 <?php $__env->stopPush(); ?>
 
 <?php $__env->startPush('scripts'); ?>
+
+
 <script>
+
+$(document).on('submit', '.toggle-status-form', function(e) {
+    e.preventDefault();
+    
+    const form = $(this);
+    const userId = form.attr('id').replace('status-form-', '');
+    const url = form.attr('action');
+    
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: form.serialize(),
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        beforeSend: function() {
+            // Disable button and show loading
+            form.find('.status-toggle-btn').prop('disabled', true)
+                .html('<span class="spinner-border spinner-border-sm" role="status"></span>');
+        },
+        success: function(response) {
+            if (response.success) {
+                // Update button appearance
+                const btn = form.find('.status-toggle-btn');
+                if (response.new_status == 1) {
+                    btn.html('<span class="badge bg-success">Active</span>')
+                        .attr('title', '<?php echo e(__("Deactivate User")); ?>');
+                } else {
+                    btn.html('<span class="badge bg-danger">Inactive</span>')
+                        .attr('title', '<?php echo e(__("Activate User")); ?>');
+                }
+                
+                // Show success alert
+                showAlert(response.message, 'success');
+            } else {
+                showAlert(response.message || '<?php echo e(__("Something went wrong")); ?>', 'danger');
+            }
+            
+            // Re-enable button
+            form.find('.status-toggle-btn').prop('disabled', false);
+        },
+        error: function(xhr) {
+            form.find('.status-toggle-btn').prop('disabled', false);
+            showAlert('<?php echo e(__("Error updating status")); ?>', 'danger');
+            console.error(xhr.responseText);
+        }
+    });
+});
+
+
 // Global variable to store DataTable instances
 window.dataTables = {};
 let isDataTableInitialized = false;
@@ -79,6 +131,7 @@ $(document).ready(function() {
     try {
         // Initialize DataTable with proper layout
         const dataTable = tableElement.DataTable({
+            order: [[4, 'desc']],
             dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
                  "<'row'<'col-sm-12'tr>>" +
                  "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
