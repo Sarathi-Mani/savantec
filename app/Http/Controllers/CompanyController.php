@@ -10,7 +10,7 @@ class CompanyController extends Controller
 {
     public function index()
     {
-        $companies = User::where('type', 'company')->where('is_active',1)->where('delete_status',1)->get();
+        $companies = User::where('type', 'company')->where('is_active',1)->where('delete_status',1)->Orderby('created_at','desc')->get();
         return view('company.index', compact('companies'));
     }
 

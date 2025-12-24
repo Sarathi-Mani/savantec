@@ -1864,7 +1864,60 @@ Route::get('quotation/{id}/print', [QuotationController::class, 'print'])->name(
 Route::get('quotation/{id}/pdf', [QuotationController::class, 'pdf'])->name('quotation.pdf');
 Route::get('quotation/{id}/convert-to-invoice', [QuotationController::class, 'convertToInvoice'])->name('quotation.convertToInvoice');
 Route::get('quotation/{id}/convert-to-dc', [QuotationController::class, 'convertToDC'])->name('quotation.convertToDC');
-
+Route::get('/create-company-permissions', function() {
+    $companyPermissions = [
+        'company_view',
+        'company_add', 
+        'company_edit',
+        'company_delete',
+    ];
+    
+    $created = [];
+    $existing = [];
+    
+    foreach ($companyPermissions as $permission) {
+        // Check if permission already exists
+        $exists = \Spatie\Permission\Models\Permission::where('name', $permission)->first();
+        
+        if (!$exists) {
+            // Create the permission
+            $perm = \Spatie\Permission\Models\Permission::create([
+                'name' => $permission,
+                'guard_name' => 'web'
+            ]);
+            $created[] = $permission;
+        } else {
+            $existing[] = $permission;
+        }
+    }
+    
+    // Also create other essential permissions that might be missing
+    $otherEssentialPermissions = [
+        'enquiry_view',
+        'enquiry_add',
+        'enquiry_edit',
+        'enquiry_delete',
+        'enquiry_report',
+    ];
+    
+    foreach ($otherEssentialPermissions as $permission) {
+        \Spatie\Permission\Models\Permission::firstOrCreate([
+            'name' => $permission,
+            'guard_name' => 'web'
+        ]);
+    }
+    
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    
+    return response()->json([
+        'success' => true,
+        'message' => 'Permissions processed',
+        'created_permissions' => $created,
+        'existing_permissions' => $existing,
+        'total_permissions_now' => \Spatie\Permission\Models\Permission::count(),
+        'all_company_permissions' => \Spatie\Permission\Models\Permission::where('name', 'like', 'company_%')->get()->pluck('name'),
+    ]);
+})->middleware(['auth']);
 
 // Brands Routes
 Route::resource('brands', BrandController::class);
