@@ -6,9 +6,11 @@ use Illuminate\Http\Request;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\User;
+use App\Models\Items;
 use App\Models\Customer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Log; 
 
 class QuotationController extends Controller
 {
@@ -278,19 +280,33 @@ public function getContactPersons(Request $request)
 /**
  * Get item price via AJAX
  */
+/**
+ * Get item price via AJAX
+ */
 public function getItemPrice(Request $request)
 {
-    $itemId = $request->item_id;
-    
-    // Replace with your actual item model query
-    // $item = Item::find($itemId);
-    
-    // For now, return dummy data
-    return response()->json([
-        'unit_price' => 1000.00,
-        'tax_percentage' => 18,
-        'description' => 'Item description'
-    ]);
+    try {
+        $itemId = $request->item_id;
+        $item = Items::find($itemId);
+        
+        if ($item) {
+            return response()->json([
+                'success' => true,
+                'price' => $item->sales_price ?? 0,
+                'tax_percentage' => $item->tax_rate ?? 18,
+                'description' => $item->description ?? ''
+            ]);
+        }
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Item not found'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error in getItemPrice: ' . $e->getMessage());
+        return response()->json(['success' => false]);
+    }
 }
 
 /**
@@ -360,9 +376,20 @@ public function store(Request $request)
     if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')
     {
         \Log::info('=== QUOTATION STORE STARTED ===');
+        \Log::info('User ID: ' . Auth::id());
+        \Log::info('Creator ID: ' . Auth::user()->creatorId());
         \Log::info('Request Data:', $request->all());
         
-        // Simplified validation - remove exists:items,id if you don't have items table
+        // DEBUG: Log the form data structure
+        \Log::info('Items array structure:');
+        if ($request->has('items')) {
+            foreach ($request->items as $index => $item) {
+                \Log::info("Item {$index}: " . print_r($item, true));
+            }
+        } else {
+            \Log::error('NO ITEMS FOUND IN REQUEST!');
+        }
+        
         $validator = \Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
             'contact_person' => 'required|string|max:255',
@@ -371,13 +398,19 @@ public function store(Request $request)
             'salesman_id' => 'required|exists:users,id',
             'quotation_code' => 'required|string|unique:quotations,quotation_code',
             'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|string|max:255', // Changed from exists:items,id
+            'items.*.item_id' => 'required',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.hsn' => 'nullable|string|max:100',
+            'items.*.sku' => 'nullable|string|max:100',
+            'items.*.discount' => 'nullable|numeric|min:0',
+            'items.*.discount_type' => 'nullable|in:percentage,fixed',
+            'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
         ]);
         
         if ($validator->fails()) {
             \Log::error('Validation Errors:', $validator->errors()->toArray());
+            \Log::error('Failed Validation Data:', $request->all());
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -388,29 +421,22 @@ public function store(Request $request)
             
             $customer = Customer::findOrFail($request->customer_id);
             
-            // ⚠️ FIXED: Assign date values from request - NOT null!
-            $quotationDate = $request->quotation_date; // Directly assign
-            $expireDate = $request->expire_date; // Can be null if empty
-            $referenceDate = $request->reference_date; // Can be null if empty
-            
             // Determine GST type based on customer shipping state
             $supplierState = 'Tamil Nadu';
             $customerState = $customer->shipping_state;
-            
             $gstType = $this->determineGstType($customerState, $supplierState);
             
-            // Calculate totals from form data
+            // Calculate totals
             $subtotal = $request->subtotal ?? 0;
             $totalCgst = $request->cgst ?? 0;
             $totalSgst = $request->sgst ?? 0;
             $totalIgst = $request->igst ?? 0;
             $totalDiscount = $request->total_discount ?? 0;
-            $roundOff = $request->round_off ?? 0;
             $grandTotal = $request->grand_total ?? 0;
             $totalItems = count($request->items);
             $totalQuantity = array_sum(array_column($request->items, 'quantity'));
             
-            // Create quotation with ALL required fields
+            // Create quotation
             $quotation = new Quotation();
             $quotation->quotation_code = $request->quotation_code;
             $quotation->customer_id = $request->customer_id;
@@ -418,32 +444,29 @@ public function store(Request $request)
             $quotation->customer_email = $customer->email;
             $quotation->customer_mobile = $customer->mobile;
             $quotation->contact_person = $request->contact_person;
-            $quotation->quotation_date = $quotationDate; // Use assigned date
-            $quotation->expire_date = $expireDate;
+            $quotation->quotation_date = $request->quotation_date;
+            $quotation->expire_date = $request->expire_date;
             $quotation->status = $request->status;
             $quotation->salesman_id = $request->salesman_id;
             $quotation->reference = $request->reference;
             $quotation->reference_no = $request->reference_no;
-            $quotation->reference_date = $referenceDate;
+            $quotation->reference_date = $request->reference_date;
             $quotation->payment_terms = $request->payment_terms;
             $quotation->gst_type = $gstType;
+            $quotation->tax_type = $request->tax_type;
+            $quotation->tax_regime = $request->tax_regime;
             $quotation->subtotal = $subtotal;
-            $quotation->other_charges = $request->other_charges_amount ?? 0;
             $quotation->total_discount = $totalDiscount;
             $quotation->cgst = $totalCgst;
             $quotation->sgst = $totalSgst;
             $quotation->igst = $totalIgst;
-            $quotation->round_off = $roundOff;
             $quotation->grand_total = $grandTotal;
             $quotation->total_items = $totalItems;
             $quotation->total_quantity = $totalQuantity;
             $quotation->description = $request->description;
-            $quotation->customer_message = $request->customer_message;
-            $quotation->send_email = $request->has('send_email') ? 1 : 0;
             $quotation->created_by = Auth::id();
             $quotation->company_id = Auth::user()->creatorId();
             
-            // Save and check for errors
             \Log::info('Saving quotation with data:', $quotation->toArray());
             
             if (!$quotation->save()) {
@@ -457,16 +480,32 @@ public function store(Request $request)
                 if(!empty($itemData['item_id'])) {
                     \Log::info("Saving item {$index}: ", $itemData);
                     
+                    // Get item name from Items table
+                    $item = Items::find($itemData['item_id']);
+                    $itemName = $item ? $item->name : 'Item ' . $itemData['item_id'];
+                    
                     $quotationItem = new QuotationItem();
                     $quotationItem->quotation_id = $quotation->id;
-                    $quotationItem->item_name = $itemData['item_id']; // This is the text, not ID
+                    $quotationItem->item_name = $itemName; // Store item name instead of ID
                     $quotationItem->description = $itemData['description'] ?? '';
+                    
+                    // Store HSN and SKU if your table has these columns (add them if not)
+                    $quotationItem->hsn_code = $itemData['hsn'] ?? '';
+                    $quotationItem->sku = $itemData['sku'] ?? '';
+                    
                     $quotationItem->quantity = $itemData['quantity'] ?? 0;
                     $quotationItem->unit_price = $itemData['unit_price'] ?? 0;
                     $quotationItem->discount = $itemData['discount'] ?? 0;
-                    $quotationItem->discount_type = 'percent'; // Default
                     
-                    // Calculate tax rates based on item tax percentage
+                    // Fix: Convert 'percentage' to 'percent' if needed
+                    $discountType = $itemData['discount_type'] ?? 'percentage';
+                    if ($discountType === 'percentage') {
+                        $quotationItem->discount_type = 'percent';
+                    } else {
+                        $quotationItem->discount_type = $discountType;
+                    }
+                    
+                    // Calculate tax rates
                     $taxPercentage = $itemData['tax_percentage'] ?? 18;
                     if($gstType === 'cgst_sgst') {
                         $quotationItem->cgst_rate = $taxPercentage / 2;
@@ -478,19 +517,33 @@ public function store(Request $request)
                         $quotationItem->igst_rate = $taxPercentage;
                     }
                     
-                    // Convert total_amount from formatted string to number
-                    $totalAmount = $itemData['total_amount'] ?? '0.00';
-                    if (is_string($totalAmount)) {
-                        $totalAmount = (float) preg_replace('/[^0-9.-]+/', '', $totalAmount);
+                    // Calculate total
+                    $quantity = $itemData['quantity'] ?? 0;
+                    $unitPrice = $itemData['unit_price'] ?? 0;
+                    $discount = $itemData['discount'] ?? 0;
+                    $discountType = $itemData['discount_type'] ?? 'percentage';
+                    
+                    $itemSubtotal = $quantity * $unitPrice;
+                    $discountAmount = 0;
+                    
+                    if ($discountType === 'percentage') {
+                        $discountAmount = ($itemSubtotal * $discount) / 100;
+                    } else {
+                        $discountAmount = $discount;
                     }
+                    
+                    $taxableAmount = $itemSubtotal - $discountAmount;
+                    $taxAmount = ($taxableAmount * $taxPercentage) / 100;
+                    $totalAmount = $taxableAmount + $taxAmount;
+                    
                     $quotationItem->total_amount = $totalAmount;
                     
                     if (!$quotationItem->save()) {
                         \Log::error('Failed to save quotation item:', $itemData);
-                        throw new \Exception('Failed to save quotation item: ' . $itemData['item_id']);
+                        throw new \Exception('Failed to save quotation item: ' . $itemName);
                     }
                     
-                    \Log::info("Item {$index} saved successfully");
+                    \Log::info("Item {$index} saved successfully with ID: " . $quotationItem->id);
                 }
             }
             
@@ -501,8 +554,6 @@ public function store(Request $request)
             
         } catch (\Exception $e) {
             DB::rollback();
-            
-            // Log the error for debugging
             \Log::error('Quotation Creation Error: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
             
@@ -514,7 +565,144 @@ public function store(Request $request)
     
     return redirect()->back()->with('error', __('Permission denied.'));
 }
-
+// Add this helper method to update Item model
+private function updateItemDetails($itemData)
+{
+    try {
+        \Log::info('=== UPDATE ITEM DETAILS STARTED ===');
+        \Log::info('Item data received:', $itemData);
+        
+        // First, try to find the item by ID
+        $itemId = null;
+        
+        // Check if item_id is numeric (ID)
+        if (isset($itemData['item_id']) && is_numeric($itemData['item_id'])) {
+            $itemId = $itemData['item_id'];
+        } 
+        // If not numeric, it might be a string - try to find by name
+        elseif (isset($itemData['item_id']) && is_string($itemData['item_id'])) {
+            // Try to extract ID from string (if format is "ID: Name")
+            if (preg_match('/^(\d+):/', $itemData['item_id'], $matches)) {
+                $itemId = $matches[1];
+            } else {
+                // Try to find by name
+                $item = Items::where('name', $itemData['item_id'])->first();
+                if ($item) {
+                    $itemId = $item->id;
+                }
+            }
+        }
+        
+        if (!$itemId) {
+            \Log::warning('Could not determine item ID from data:', $itemData);
+            return false;
+        }
+        
+        $item = Items::find($itemId);
+        
+        if (!$item) {
+            \Log::error('Item not found with ID: ' . $itemId);
+            return false;
+        }
+        
+        \Log::info('Found item: ' . $item->name . ' (ID: ' . $item->id . ')');
+        \Log::info('Current item data:', [
+            'hsn' => $item->hsn,
+            'sku' => $item->sku,
+            'description' => $item->description,
+            'sales_price' => $item->sales_price,
+            'discount' => $item->discount,
+            'discount_type' => $item->discount_type,
+            'tax_type' => $item->tax_type,
+        ]);
+        
+        $updated = false;
+        
+        // Update HSN if provided and different
+        if (isset($itemData['hsn']) && !empty($itemData['hsn']) && $item->hsn != $itemData['hsn']) {
+            \Log::info('Updating HSN from "' . $item->hsn . '" to "' . $itemData['hsn'] . '"');
+            $item->hsn = $itemData['hsn'];
+            $updated = true;
+        }
+        
+        // Update SKU if provided and different
+        if (isset($itemData['sku']) && !empty($itemData['sku']) && $item->sku != $itemData['sku']) {
+            \Log::info('Updating SKU from "' . $item->sku . '" to "' . $itemData['sku'] . '"');
+            $item->sku = $itemData['sku'];
+            $updated = true;
+        }
+        
+        // Update description if provided and different
+        if (isset($itemData['description']) && !empty($itemData['description']) && $item->description != $itemData['description']) {
+            \Log::info('Updating description from "' . substr($item->description, 0, 50) . '..." to "' . substr($itemData['description'], 0, 50) . '..."');
+            $item->description = $itemData['description'];
+            $updated = true;
+        }
+        
+        // Update discount if provided and different
+        if (isset($itemData['discount']) && $itemData['discount'] != '' && $item->discount != $itemData['discount']) {
+            \Log::info('Updating discount from "' . $item->discount . '" to "' . $itemData['discount'] . '"');
+            $item->discount = $itemData['discount'];
+            $updated = true;
+        }
+        
+        // Update discount type if provided and different
+        if (isset($itemData['discount_type']) && !empty($itemData['discount_type']) && $item->discount_type != $itemData['discount_type']) {
+            \Log::info('Updating discount_type from "' . $item->discount_type . '" to "' . $itemData['discount_type'] . '"');
+            $item->discount_type = $itemData['discount_type'];
+            $updated = true;
+        }
+        
+        // Update sales price if provided and different
+        if (isset($itemData['unit_price']) && $itemData['unit_price'] > 0 && $item->sales_price != $itemData['unit_price']) {
+            \Log::info('Updating sales_price from "' . $item->sales_price . '" to "' . $itemData['unit_price'] . '"');
+            $item->sales_price = $itemData['unit_price'];
+            $updated = true;
+        }
+        
+        // NOTE: Your table doesn't have tax_rate column, it has tax_type
+        // If you want to store tax percentage, you might need to add a tax_rate column
+        // Or use a different approach
+        
+        // For now, let's log what tax percentage was sent
+        if (isset($itemData['tax_percentage'])) {
+            \Log::info('Tax percentage sent in request: ' . $itemData['tax_percentage'] . '%');
+            \Log::info('Note: Items table only has tax_type column, not tax_rate column');
+        }
+        
+        if ($updated) {
+            try {
+                if ($item->save()) {
+                    \Log::info("Successfully updated Item model for item ID: {$itemId}");
+                    \Log::info('Updated item data:', [
+                        'hsn' => $item->hsn,
+                        'sku' => $item->sku,
+                        'description' => $item->description,
+                        'sales_price' => $item->sales_price,
+                        'discount' => $item->discount,
+                        'discount_type' => $item->discount_type,
+                    ]);
+                    return true;
+                } else {
+                    \Log::error("Failed to save Item model for item ID: {$itemId}");
+                    return false;
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error saving item: ' . $e->getMessage());
+                \Log::error('Error details: ' . $e->getTraceAsString());
+                return false;
+            }
+        } else {
+            \Log::info("No changes needed for item ID: {$itemId}");
+            return true;
+        }
+        
+    } catch (\Exception $e) {
+        \Log::error('Error updating item details: ' . $e->getMessage());
+        \Log::error('Stack trace: ' . $e->getTraceAsString());
+        return false;
+    }
+}
 
     /**
      * Display the specified resource.
@@ -606,7 +794,6 @@ public function update(Request $request, $id)
         \Log::info('=== QUOTATION UPDATE STARTED ===');
         \Log::info('Request Data:', $request->all());
         
-        // Similar validation as store method
         $validator = \Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
             'contact_person' => 'required|string|max:255',
@@ -618,6 +805,10 @@ public function update(Request $request, $id)
             'items.*.item_id' => 'required|string|max:255',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.hsn' => 'nullable|string|max:100',
+            'items.*.sku' => 'nullable|string|max:100',
+            'items.*.discount' => 'nullable|numeric|min:0',
+            'items.*.discount_type' => 'nullable|in:percentage,fixed',
         ]);
         
         if ($validator->fails()) {
@@ -632,12 +823,12 @@ public function update(Request $request, $id)
             
             $customer = Customer::findOrFail($request->customer_id);
             
-            // Determine GST type based on customer shipping state
+            // Determine GST type
             $supplierState = 'Tamil Nadu';
             $customerState = $customer->shipping_state;
             $gstType = $this->determineGstType($customerState, $supplierState);
             
-            // Calculate totals from form data
+            // Calculate totals
             $subtotal = $request->subtotal ?? 0;
             $totalCgst = $request->cgst ?? 0;
             $totalSgst = $request->sgst ?? 0;
@@ -687,21 +878,28 @@ public function update(Request $request, $id)
             // Delete existing items and save new ones
             QuotationItem::where('quotation_id', $quotation->id)->delete();
             
-            // Save items
+            // Save items and update Item model if needed
             foreach($request->items as $index => $itemData) {
                 if(!empty($itemData['item_id'])) {
                     \Log::info("Saving item {$index}: ", $itemData);
+                    
+                    // Check if we need to update the Item model
+                    if ($request->has('update_item_details') && $request->update_item_details == '1') {
+                        $this->updateItemDetails($itemData);
+                    }
                     
                     $quotationItem = new QuotationItem();
                     $quotationItem->quotation_id = $quotation->id;
                     $quotationItem->item_name = $itemData['item_id'];
                     $quotationItem->description = $itemData['description'] ?? '';
+                    $quotationItem->hsn_code = $itemData['hsn'] ?? '';
+                    $quotationItem->sku = $itemData['sku'] ?? '';
                     $quotationItem->quantity = $itemData['quantity'] ?? 0;
                     $quotationItem->unit_price = $itemData['unit_price'] ?? 0;
                     $quotationItem->discount = $itemData['discount'] ?? 0;
-                    $quotationItem->discount_type = 'percent';
+                    $quotationItem->discount_type = $itemData['discount_type'] ?? 'percentage';
                     
-                    // Calculate tax rates based on item tax percentage
+                    // Calculate tax rates
                     $taxPercentage = $itemData['tax_percentage'] ?? 18;
                     if($gstType === 'cgst_sgst') {
                         $quotationItem->cgst_rate = $taxPercentage / 2;
@@ -713,11 +911,25 @@ public function update(Request $request, $id)
                         $quotationItem->igst_rate = $taxPercentage;
                     }
                     
-                    // Convert total_amount from formatted string to number
-                    $totalAmount = $itemData['total_amount'] ?? '0.00';
-                    if (is_string($totalAmount)) {
-                        $totalAmount = (float) preg_replace('/[^0-9.-]+/', '', $totalAmount);
+                    // Calculate total
+                    $quantity = $itemData['quantity'] ?? 0;
+                    $unitPrice = $itemData['unit_price'] ?? 0;
+                    $discount = $itemData['discount'] ?? 0;
+                    $discountType = $itemData['discount_type'] ?? 'percentage';
+                    
+                    $itemSubtotal = $quantity * $unitPrice;
+                    $discountAmount = 0;
+                    
+                    if ($discountType === 'percentage') {
+                        $discountAmount = ($itemSubtotal * $discount) / 100;
+                    } else {
+                        $discountAmount = $discount;
                     }
+                    
+                    $taxableAmount = $itemSubtotal - $discountAmount;
+                    $taxAmount = ($taxableAmount * $taxPercentage) / 100;
+                    $totalAmount = $taxableAmount + $taxAmount;
+                    
                     $quotationItem->total_amount = $totalAmount;
                     
                     if (!$quotationItem->save()) {
@@ -736,8 +948,6 @@ public function update(Request $request, $id)
             
         } catch (\Exception $e) {
             DB::rollback();
-            
-            // Log the error for debugging
             \Log::error('Quotation Update Error: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
             
@@ -749,24 +959,45 @@ public function update(Request $request, $id)
     
     return redirect()->back()->with('error', __('Permission denied.'));
 }
-// In your QuotationController.php
+/**
+ * Get item details via AJAX
+ */
 public function getItemDetails(Request $request)
 {
-    $item = Item::find($request->item_id);
-    
-    if ($item) {
+    try {
+        $itemId = $request->item_id;
+        $item = Items::find($itemId);
+        
+        if ($item) {
+            // Your table doesn't have tax_rate, so return a default or null
+            // If you need tax rate, you might want to add it to the table
+            return response()->json([
+                'success' => true,
+                'price' => $item->sales_price ?? 0,
+                'hsn' => $item->hsn ?? '',
+                'sku' => $item->sku ?? '',
+                'description' => $item->description ?? '',
+                'tax_rate' => 18, // Default since table doesn't have this column
+                'discount' => $item->discount ?? 0,
+                'discount_type' => $item->discount_type ?? 'percentage',
+            ]);
+        }
+        
         return response()->json([
-            'success' => true,
-            'price' => $item->sales_price,
-            'hsn_code' => $item->hsn_code,
-            'sku' => $item->sku,
-            'description' => $item->description,
-            'tax_rate' => $item->tax_rate,
+            'success' => false,
+            'message' => 'Item not found'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error in getItemDetails: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Server error'
         ]);
     }
-    
-    return response()->json(['success' => false]);
 }
+
+
     /**
      * Remove the specified resource from storage.
      */
@@ -792,7 +1023,7 @@ public function getItemDetails(Request $request)
         
         return redirect()->back()->with('error', __('Permission denied.'));
     }
-
+                  
     public function print($id)
     {
         if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')

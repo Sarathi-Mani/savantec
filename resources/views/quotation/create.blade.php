@@ -26,6 +26,15 @@
         font-size: 0.85rem;
         text-decoration: none;
     }
+    .text-success {
+        color: #28a745 !important;
+    }
+    .text-danger {
+        color: #dc3545 !important;
+    }
+    .other-charge-row {
+        margin-bottom: 5px;
+    }
 </style>
 @endpush
 
@@ -51,6 +60,19 @@
                     <form method="POST" action="{{ route('quotation.store') }}" id="quotationForm">
                         @csrf
                         
+                        <!-- Hidden fields -->
+                        <input type="hidden" name="subtotal" id="subtotalInput" value="0">
+                        <input type="hidden" name="total_discount" id="totalDiscountInput" value="0">
+                        <input type="hidden" name="cgst" id="cgstInput" value="0">
+                        <input type="hidden" name="sgst" id="sgstInput" value="0">
+                        <input type="hidden" name="igst" id="igstInput" value="0">
+                        <input type="hidden" name="grand_total" id="grandTotalInput" value="0">
+                        <input type="hidden" name="taxable_amount" id="taxableAmountInput" value="0">
+                        <input type="hidden" name="total_tax" id="totalTaxInput" value="0">
+                        <input type="hidden" name="round_off" id="roundOffInput" value="0">
+                        <input type="hidden" name="other_charges" id="otherChargesInput" value="[]">
+                        <input type="hidden" name="other_charges_total" id="otherChargesTotalInput" value="0">
+                        
                         <!-- Enquiry Reference (Hidden) -->
                         @if(session('converted_enquiry'))
                             <input type="hidden" name="enquiry_id" value="{{ session('converted_enquiry')['enquiry_id'] ?? '' }}">
@@ -59,7 +81,7 @@
                         <div class="row">
                             <!-- Left Column -->
                             <div class="col-md-6">
-                                   <div class="card mb-3">
+                                <div class="card mb-3">
                                     <div class="card-header bg-light">
                                         <h6 class="mb-0">{{ __('Quotation Details') }}</h6>
                                     </div>
@@ -70,7 +92,7 @@
                                                 <input type="text" class="form-control" id="quotation_code" 
                                                        name="quotation_code" required
                                                        value="{{ $quotationCode }}">
-                                                           </div>
+                                            </div>
                                             <div class="col-md-6">
                                                 <label for="quotation_date" class="form-label">{{ __('Date*') }}</label>
                                                 <input type="date" class="form-control" id="quotation_date" 
@@ -97,8 +119,9 @@
                                         </div>
                                     </div>
                                 </div>
+                                
                                 <!-- Customer Information -->
-                              <div class="card mb-3">
+                                <div class="card mb-3">
                                     <div class="card-header bg-light">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <h6 class="mb-0">{{ __('Customer Information') }}</h6>
@@ -125,7 +148,6 @@
                                                             </option>
                                                         @endforeach
                                                     </select>
-                                                   
                                                 </div>
                                             </div>
                                         </div>
@@ -253,204 +275,207 @@
                         </div>
                         
                         <!-- Items Section -->
-                      <!-- Items Section -->
-<div class="card mb-3">
-    <div class="card-header bg-light">
-        <div class="d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">{{ __('Items') }}</h6>
-            <a href="{{ route('items.create') }}" 
-               class="btn btn-sm btn-outline-primary add-new-link">
-                <i class="ti ti-plus"></i> {{ __('Add New Item') }}
-            </a>
-        </div>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table" id="itemsTable">
-                <thead>
-                    <tr>
-                        <th width="20%">{{ __('Item*') }}</th>
-                        <th width="15%">{{ __('HSN Code') }}</th>
-                        <th width="15%">{{ __('SKU') }}</th>
-                        <th width="15%">{{ __('Description') }}</th>
-                        <th width="8%">{{ __('Qty*') }}</th>
-                        <th width="8%">{{ __('Unit Price*') }}</th>
-                        <th width="8%">{{ __('Discount') }}</th>
-                        <th width="8%">{{ __('Tax %') }}</th>
-                        <th width="8%">{{ __('Total') }}</th>
-                        <th width="5%">{{ __('Action') }}</th>
-                    </tr>
-                </thead>
-                <tbody id="itemsBody">
-                    @if(session('converted_enquiry') && isset(session('converted_enquiry')['items']))
-                        @php
-                            $enquiryItems = session('converted_enquiry')['items'] ?? [];
-                        @endphp
-                        @foreach($enquiryItems as $index => $item)
-                            <tr data-index="{{ $index }}">
-                                <td>
-                                    <select class="form-control select2-item" name="items[{{ $index }}][item_id]" required>
-                                        <option value="">{{ __('Search Item...') }}</option>
-                                        @foreach($items as $id => $name)
-                                            <option value="{{ $id }}"
-                                                @if(isset($item['item_id']) && $item['item_id'] == $id) selected 
-                                                @elseif(isset($item['description']) && $item['description'] == $name) selected @endif
-                                                data-hsn="{{ $item['hsn'] ?? '' }}"
-                                                data-sku="{{ $item['sku'] ?? '' }}"
-                                                data-discount="{{ $itemDetails[$id]['discount'] ?? 0 }}"> 
-                                                {{ $name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="text" class="form-control hsn" 
-                                           name="items[{{ $index }}][hsn]" 
-                                           value="{{ $item['hsn'] ?? '' }}"
-                                           placeholder="{{ __('HSN') }}">
-                                </td>
-                                <td>
-                                    <input type="text" class="form-control sku" 
-                                           name="items[{{ $index }}][sku]" 
-                                           value="{{ $item['sku'] ?? '' }}"
-                                           placeholder="{{ __('SKU') }}">
-                                </td>
-                                <td>
-                                    <textarea class="form-control item-description" name="items[{{ $index }}][description]" rows="1">{{ $item['description'] ?? ($item['item_id'] ?? '') }}</textarea>
-                                </td>
-                                <td>
-                                    <input type="number" class="form-control quantity" 
-                                           name="items[{{ $index }}][quantity]" min="0.01" step="0.01" 
-                                           value="{{ $item['quantity'] ?? 1 }}" required>
-                                </td>
-                                <td>
-                                    <input type="number" class="form-control unit-price" 
-                                           name="items[{{ $index }}][unit_price]" min="0" step="0.01" 
-                                           value="{{ $item['unit_price'] ?? ($item['sales_price'] ?? 0) }}" required>
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control discount" 
-                                               name="items[{{ $index }}][discount]" min="0" max="100" step="0.01" 
-                                               value="{{ $item['discount'] ?? 0 }}">
-                                        <span class="input-group-text">%</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <select class="form-control tax-percentage" name="items[{{ $index }}][tax_percentage]">
-                                            <option value="0">0%</option>
-                                            <option value="5">5%</option>
-                                            <option value="12">12%</option>
-                                            <option value="18" selected>18%</option>
-                                            <option value="28">28%</option>
-                                        </select>
-                                    </div>
-                                </td>
-                                <td>
-                                    <input type="text" class="form-control total-amount" 
-                                           name="items[{{ $index }}][total_amount]" readonly
-                                           value="{{ isset($item['total_amount']) ? number_format($item['total_amount'], 2) : '0.00' }}">
-                                </td>
-                                <td>
-                                    @if($loop->first && count($enquiryItems) == 1)
-                                        <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
-                                            <i class="ti ti-trash"></i>
-                                        </button>
-                                    @else
-                                        <button type="button" class="btn btn-sm btn-danger remove-item">
-                                            <i class="ti ti-trash"></i>
-                                        </button>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    @else
-                        <!-- Default first row -->
-                        <tr data-index="0">
-                            <td>
-                                <select class="form-control select2-item" name="items[0][item_id]" required>
-                                    <option value="">{{ __('Search Item...') }}</option>
-                                    @foreach($items as $id => $name)
-                                        <option value="{{ $id }}" 
-                                            data-hsn="{{ $itemDetails[$id]['hsn'] ?? '' }}"
-                                            data-sku="{{ $itemDetails[$id]['sku'] ?? '' }}"
-                                            data-discount="{{ $itemDetails[$id]['discount'] ?? 0 }}">
-                                            {{ $name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </td>
-                            <td>
-                                <input type="text" class="form-control hsn" 
-                                       name="items[0][hsn]" 
-                                       value=""
-                                       placeholder="{{ __('HSN Code') }}">
-                            </td>
-                            <td>
-                                <input type="text" class="form-control sku" 
-                                       name="items[0][sku]" 
-                                       value=""
-                                       placeholder="{{ __('SKU') }}">
-                            </td>
-                            <td>
-                                <textarea class="form-control item-description" name="items[0][description]" rows="1"></textarea>
-                            </td>
-                            <td>
-                                <input type="number" class="form-control quantity" 
-                                       name="items[0][quantity]" min="0.01" step="0.01" 
-                                       value="1" required>
-                            </td>
-                            <td>
-                                <input type="number" class="form-control unit-price" 
-                                       name="items[0][unit_price]" min="0" step="0.01" 
-                                       value="0" required>
-                            </td>
-                            <td>
-                                <div class="input-group">
-                                    <input type="number" class="form-control discount" 
-                                           name="items[0][discount]" min="0" max="100" step="0.01" 
-                                           value="0">
-                                   <select class="form-control discount-type" name="items[0][discount_type]" style="max-width: 80px;">     
-                                        <option value="percentage" @if(($item['discount_type'] ?? 'percentage') == 'percentage') selected @endif>%</option>
-                                            <option value="fixed" @if(($item['discount_type'] ?? 'percentage') == 'fixed') selected @endif>₹</option>
-                                        </select>
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">{{ __('Items') }}</h6>
+                                    <a href="{{ route('items.create') }}" 
+                                       class="btn btn-sm btn-outline-primary add-new-link">
+                                        <i class="ti ti-plus"></i> {{ __('Add New Item') }}
+                                    </a>
                                 </div>
-                            </td>
-                            <td>
-                                <div class="input-group">
-                                    <select class="form-control tax-percentage" name="items[0][tax_percentage]">
-                                        <option value="0">0%</option>
-                                        <option value="5">5%</option>
-                                        <option value="12">12%</option>
-                                        <option value="18" selected>18%</option>
-                                        <option value="28">28%</option>
-                                    </select>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table" id="itemsTable">
+                                        <thead>
+                                            <tr>
+                                                <th width="20%">{{ __('Item*') }}</th>
+                                                <th width="15%">{{ __('HSN Code') }}</th>
+                                                <th width="15%">{{ __('SKU') }}</th>
+                                                <th width="15%">{{ __('Description') }}</th>
+                                                <th width="8%">{{ __('Qty*') }}</th>
+                                                <th width="8%">{{ __('Unit Price*') }}</th>
+                                                <th width="8%">{{ __('Discount') }}</th>
+                                                <th width="8%">{{ __('Tax %') }}</th>
+                                                <th width="8%">{{ __('Total') }}</th>
+                                                <th width="5%">{{ __('Action') }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="itemsBody">
+                                            @if(session('converted_enquiry') && isset(session('converted_enquiry')['items']))
+                                                @php
+                                                    $enquiryItems = session('converted_enquiry')['items'] ?? [];
+                                                @endphp
+                                                @foreach($enquiryItems as $index => $item)
+                                                    <tr data-index="{{ $index }}">
+                                                        <td>
+                                                            <select class="form-control select2-item" name="items[{{ $index }}][item_id]" required>
+                                                                <option value="">{{ __('Search Item...') }}</option>
+                                                                @foreach($items as $id => $name)
+                                                                    <option value="{{ $id }}"
+                                                                        @if(isset($item['item_id']) && $item['item_id'] == $id) selected 
+                                                                        @elseif(isset($item['description']) && $item['description'] == $name) selected @endif
+                                                                        data-hsn="{{ $item['hsn'] ?? '' }}"
+                                                                        data-sku="{{ $item['sku'] ?? '' }}"
+                                                                        data-discount="{{ $itemDetails[$id]['discount'] ?? 0 }}">
+                                                                        {{ $name }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        </td>
+                                                        <td>
+                                                            <input type="text" class="form-control hsn" 
+                                                                   name="items[{{ $index }}][hsn]" 
+                                                                   value="{{ $item['hsn'] ?? '' }}"
+                                                                   placeholder="{{ __('HSN') }}">
+                                                        </td>
+                                                        <td>
+                                                            <input type="text" class="form-control sku" 
+                                                                   name="items[{{ $index }}][sku]" 
+                                                                   value="{{ $item['sku'] ?? '' }}"
+                                                                   placeholder="{{ __('SKU') }}">
+                                                        </td>
+                                                        <td>
+                                                            <textarea class="form-control item-description" name="items[{{ $index }}][description]" rows="1">{{ $item['description'] ?? ($item['item_id'] ?? '') }}</textarea>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" class="form-control quantity" 
+                                                                   name="items[{{ $index }}][quantity]" min="0.01" step="0.01" 
+                                                                   value="{{ $item['quantity'] ?? 1 }}" required>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" class="form-control unit-price" 
+                                                                   name="items[{{ $index }}][unit_price]" min="0" step="0.01" 
+                                                                   value="{{ $item['unit_price'] ?? ($item['sales_price'] ?? 0) }}" required>
+                                                        </td>
+                                                        <td>
+                                                            <div class="input-group">
+                                                                <input type="number" class="form-control discount" 
+                                                                       name="items[{{ $index }}][discount]" min="0" max="100" step="0.01" 
+                                                                       value="{{ $item['discount'] ?? 0 }}">
+                                                                <select class="form-control discount-type" name="items[{{ $index }}][discount_type]" style="max-width: 80px;">
+                                                                    <option value="percentage" @if(($item['discount_type'] ?? 'percentage') == 'percentage') selected @endif>%</option>
+                                                                    <option value="fixed" @if(($item['discount_type'] ?? 'percentage') == 'fixed') selected @endif>₹</option>
+                                                                </select>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div class="input-group">
+                                                                <select class="form-control tax-percentage" name="items[{{ $index }}][tax_percentage]">
+                                                                    <option value="0" @if(($item['tax_percentage'] ?? 18) == 0) selected @endif>0%</option>
+                                                                    <option value="5" @if(($item['tax_percentage'] ?? 18) == 5) selected @endif>5%</option>
+                                                                    <option value="12" @if(($item['tax_percentage'] ?? 18) == 12) selected @endif>12%</option>
+                                                                    <option value="18" @if(($item['tax_percentage'] ?? 18) == 18) selected @endif>18%</option>
+                                                                    <option value="28" @if(($item['tax_percentage'] ?? 18) == 28) selected @endif>28%</option>
+                                                                </select>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <input type="text" class="form-control total-amount" 
+                                                                   name="items[{{ $index }}][total_amount]" readonly
+                                                                   value="{{ isset($item['total_amount']) ? number_format($item['total_amount'], 2) : '0.00' }}">
+                                                        </td>
+                                                        <td>
+                                                            @if($loop->first && count($enquiryItems) == 1)
+                                                                <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
+                                                                    <i class="ti ti-trash"></i>
+                                                                </button>
+                                                            @else
+                                                                <button type="button" class="btn btn-sm btn-danger remove-item">
+                                                                    <i class="ti ti-trash"></i>
+                                                                </button>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            @else
+                                                <!-- Default first row -->
+                                                <tr data-index="0">
+                                                    <td>
+                                                        <select class="form-control select2-item" name="items[0][item_id]" required>
+                                                            <option value="">{{ __('Search Item...') }}</option>
+                                                            @foreach($items as $id => $name)
+                                                                <option value="{{ $id }}" 
+                                                                    data-hsn="{{ $itemDetails[$id]['hsn'] ?? '' }}"
+                                                                    data-sku="{{ $itemDetails[$id]['sku'] ?? '' }}"
+                                                                    data-discount="{{ $itemDetails[$id]['discount'] ?? 0 }}"
+                                                                    data-discount-type="{{ $itemDetails[$id]['discount_type'] ?? 'percentage' }}">
+                                                                    {{ $name }}
+                                                                </option>
+                                                            @endforeach
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" class="form-control hsn" 
+                                                               name="items[0][hsn]" 
+                                                               value=""
+                                                               placeholder="{{ __('HSN Code') }}">
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" class="form-control sku" 
+                                                               name="items[0][sku]" 
+                                                               value=""
+                                                               placeholder="{{ __('SKU') }}">
+                                                    </td>
+                                                    <td>
+                                                        <textarea class="form-control item-description" name="items[0][description]" rows="1"></textarea>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" class="form-control quantity" 
+                                                               name="items[0][quantity]" min="0.01" step="0.01" 
+                                                               value="1" required>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" class="form-control unit-price" 
+                                                               name="items[0][unit_price]" min="0" step="0.01" 
+                                                               value="0" required>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group">
+                                                            <input type="number" class="form-control discount" 
+                                                                   name="items[0][discount]" min="0" step="0.01" 
+                                                                   value="0">
+                                                            <select class="form-control discount-type" name="items[0][discount_type]" style="max-width: 80px;">
+                                                                <option value="percentage" selected>%</option>
+                                                                <option value="fixed">₹</option>
+                                                            </select>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group">
+                                                            <select class="form-control tax-percentage" name="items[0][tax_percentage]">
+                                                                <option value="0">0%</option>
+                                                                <option value="5">5%</option>
+                                                                <option value="12">12%</option>
+                                                                <option value="18" selected>18%</option>
+                                                                <option value="28">28%</option>
+                                                            </select>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <input type="text" class="form-control total-amount" 
+                                                               name="items[0][total_amount]" readonly
+                                                               value="0.00">
+                                                    </td>
+                                                    <td>
+                                                        <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
+                                                            <i class="ti ti-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            @endif
+                                        </tbody>
+                                    </table>
                                 </div>
-                            </td>
-                            <td>
-                                <input type="text" class="form-control total-amount" 
-                                       name="items[0][total_amount]" readonly
-                                       value="0.00">
-                            </td>
-                            <td>
-                                <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
-                                    <i class="ti ti-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    @endif
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="text-end mt-3">
-            <button type="button" class="btn btn-primary" id="addItem">
-                <i class="ti ti-plus"></i> {{ __('Add Item') }}
-            </button>
-        </div>
-    </div>
-</div>
+                                
+                                <div class="text-end mt-3">
+                                    <button type="button" class="btn btn-primary" id="addItem">
+                                        <i class="ti ti-plus"></i> {{ __('Add Item') }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                         
                         <!-- Summary Section -->
                         <div class="row">
@@ -476,7 +501,6 @@
                                                           name="description" rows="3" placeholder="{{ __('Enter additional notes...') }}">{{ old('description') }}</textarea>
                                             </div>
                                         </div>
-                                        
                                     </div>
                                 </div>
                             </div>
@@ -488,6 +512,26 @@
                                         <h6 class="mb-0">{{ __('Summary') }}</h6>
                                     </div>
                                     <div class="card-body">
+                                        <!-- Items Count and Quantity -->
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{{ __('Total Items') }}</label>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <span id="totalItems">0</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{{ __('Total Quantity') }}</label>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <span id="totalQuantity">0.00</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Subtotal -->
                                         <div class="row mb-2">
                                             <div class="col-md-6">
                                                 <label class="form-label">{{ __('Subtotal') }}</label>
@@ -497,12 +541,25 @@
                                             </div>
                                         </div>
                                         
+                                        <!-- Global Discount -->
                                         <div class="row mb-2">
                                             <div class="col-md-6">
-                                                <label class="form-label">{{ __('Discount') }}</label>
+                                                <label class="form-label">{{ __('All Items Discount') }}</label>
                                             </div>
                                             <div class="col-md-6 text-end">
-                                                <span id="totalDiscount">0.00</span>
+                                                <div class="input-group input-group-sm mb-2" style="max-width: 200px; float: right;">
+                                                    <input type="number" class="form-control" id="globalDiscountValue" 
+                                                           value="0" min="0" step="0.01">
+                                                    <select class="form-control" id="globalDiscountType" style="width: 80px;">
+                                                        <option value="percentage">%</option>
+                                                        <option value="fixed">₹</option>
+                                                    </select>
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                                                            id="applyGlobalDiscount">
+                                                        Apply
+                                                    </button>
+                                                </div>
+                                                <span id="totalDiscountDisplay" style="clear: both; display: block;">0.00</span>
                                             </div>
                                         </div>
                                         
@@ -515,6 +572,27 @@
                                             </div>
                                         </div>
                                         
+                                        <!-- Other Charges Section -->
+                                        <div class="card mt-3 mb-3">
+                                            <div class="card-header bg-light py-1">
+                                                <h6 class="mb-0">{{ __('Other Charges') }}</h6>
+                                            </div>
+                                            <div class="card-body py-2">
+                                                <div class="row mb-2" id="otherChargesContainer">
+                                                    <!-- Other charges will be added here dynamically -->
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-12 text-end">
+                                                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                                id="addOtherCharge">
+                                                            <i class="ti ti-plus"></i> Add Charge
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Tax Breakdown -->
                                         <div class="row mb-2">
                                             <div class="col-md-6">
                                                 <label class="form-label">{{ __('CGST') }}</label>
@@ -551,6 +629,17 @@
                                             </div>
                                         </div>
                                         
+                                        <!-- Round Off -->
+                                        <div class="row mb-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label">{{ __('Round Off') }}</label>
+                                            </div>
+                                            <div class="col-md-6 text-end">
+                                                <span id="roundOff">0.00</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Grand Total -->
                                         <div class="row mb-2">
                                             <div class="col-md-6">
                                                 <label class="form-label">{{ __('Grand Total') }}</label>
@@ -559,16 +648,6 @@
                                                 <h5 id="grandTotal">0.00</h5>
                                             </div>
                                         </div>
-                                        
-                                        <!-- Hidden fields for calculations -->
-                                        <input type="hidden" id="subtotalInput" name="subtotal" value="0">
-                                        <input type="hidden" id="totalDiscountInput" name="total_discount" value="0">
-                                        <input type="hidden" id="taxableAmountInput" name="taxable_amount" value="0">
-                                        <input type="hidden" id="cgstInput" name="cgst" value="0">
-                                        <input type="hidden" id="sgstInput" name="sgst" value="0">
-                                        <input type="hidden" id="igstInput" name="igst" value="0">
-                                        <input type="hidden" id="totalTaxInput" name="total_tax" value="0">
-                                        <input type="hidden" id="grandTotalInput" name="grand_total" value="0">
                                     </div>
                                 </div>
                             </div>
@@ -593,37 +672,39 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-    $(document).ready(function() {
-        // Initialize Select2 for searchable dropdowns
-        function initializeSelect2() {
-            $('.select2-search').select2({
-                placeholder: function() {
-                    return $(this).data('placeholder') || 'Search...';
-                },
-                allowClear: true,
-                width: '100%'
-            });
-            
-            $('.select2-item').select2({
-                placeholder: 'Search Item...',
-                allowClear: true,
-                width: '100%'
-            });
-        }
+$(document).ready(function() {
+    // Initialize Select2 for searchable dropdowns
+    function initializeSelect2() {
+        $('.select2-search').select2({
+            placeholder: function() {
+                return $(this).data('placeholder') || 'Search...';
+            },
+            allowClear: true,
+            width: '100%'
+        });
         
-        initializeSelect2();
-        
-        // Initialize itemIndex
-        let itemIndex = 0;
-        @if(session('converted_enquiry') && isset(session('converted_enquiry')['items']))
-            itemIndex = {{ count(session('converted_enquiry')['items']) }};
-        @endif
-        
-        calculateTotals();
-        
-       $('#addItem').click(function() {
+        $('.select2-item').select2({
+            placeholder: 'Search Item...',
+            allowClear: true,
+            width: '100%'
+        });
+    }
+    
+    initializeSelect2();
+    
+    // Initialize itemIndex
+    let itemIndex = 0;
+    @if(session('converted_enquiry') && isset(session('converted_enquiry')['items']))
+        itemIndex = {{ count(session('converted_enquiry')['items']) }};
+    @endif
+    
+    // Initialize other charges index
+    let otherChargeIndex = 0;
+    
+    calculateTotals();
+    
+    $('#addItem').click(function() {
         const newRow = `
             <tr data-index="${itemIndex}">
                 <td>
@@ -634,7 +715,7 @@
                                 data-hsn="{{ $itemDetails[$id]['hsn'] ?? '' }}"
                                 data-sku="{{ $itemDetails[$id]['sku'] ?? '' }}"
                                 data-discount="{{ $itemDetails[$id]['discount'] ?? 0 }}"
-                                 data-discount-type="{{ $itemDetails[$id]['discount_type'] ?? 'percentage' }}"><!-- Add discount here -->
+                                data-discount-type="{{ $itemDetails[$id]['discount_type'] ?? 'percentage' }}">
                                 {{ $name }}
                             </option>
                         @endforeach
@@ -668,13 +749,12 @@
                 <td>
                     <div class="input-group">
                         <input type="number" class="form-control discount" 
-                               name="items[${itemIndex}][discount]" min="0" max="100" step="0.01" 
+                               name="items[${itemIndex}][discount]" min="0" step="0.01" 
                                value="0">
-                               <select class="form-control discount-type" name="items[${itemIndex}][discount_type]" style="max-width: 80px;">
-    <option value="percentage" selected>%</option>
-    <option value="fixed">₹</option>
-</select>
-                        <span class="input-group-text">%</span>
+                        <select class="form-control discount-type" name="items[${itemIndex}][discount_type]" style="max-width: 80px;">
+                            <option value="percentage" selected>%</option>
+                            <option value="fixed">₹</option>
+                        </select>
                     </div>
                 </td>
                 <td>
@@ -713,6 +793,95 @@
         calculateTotals();
     });
     
+    // Add other charge row
+    $('#addOtherCharge').click(function() {
+        const chargeHtml = `
+            <div class="other-charge-row mb-2" data-index="${otherChargeIndex}">
+                <div class="row">
+                    <div class="col-5">
+                        <input type="text" class="form-control form-control-sm charge-name" 
+                               placeholder="Charge Name" name="other_charges[${otherChargeIndex}][name]">
+                    </div>
+                    <div class="col-4">
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control charge-amount" 
+                                   name="other_charges[${otherChargeIndex}][amount]" 
+                                   value="0" min="0" step="0.01">
+                            <select class="form-control charge-type" 
+                                    name="other_charges[${otherChargeIndex}][type]" style="max-width: 70px;">
+                                <option value="fixed">₹</option>
+                                <option value="percentage">%</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <select class="form-control form-control-sm charge-tax" 
+                                name="other_charges[${otherChargeIndex}][tax]">
+                            <option value="0">0%</option>
+                            <option value="5">5%</option>
+                            <option value="12">12%</option>
+                            <option value="18" selected>18%</option>
+                            <option value="28">28%</option>
+                        </select>
+                    </div>
+                    <div class="col-1">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-charge">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        $('#otherChargesContainer').append(chargeHtml);
+        otherChargeIndex++;
+        
+        calculateTotals();
+    });
+    
+    // Remove other charge
+    $(document).on('click', '.remove-charge', function() {
+        $(this).closest('.other-charge-row').remove();
+        calculateTotals();
+    });
+    
+    // Apply global discount to all items
+    $('#applyGlobalDiscount').click(function() {
+        const discountValue = parseFloat($('#globalDiscountValue').val()) || 0;
+        const discountType = $('#globalDiscountType').val();
+        
+        if (discountValue > 0) {
+            // Apply discount to all items
+            $('#itemsBody tr').each(function() {
+                const row = $(this);
+                const unitPrice = parseFloat(row.find('.unit-price').val()) || 0;
+                
+                if (unitPrice > 0) {
+                    if (discountType === 'percentage') {
+                        // Check if percentage exceeds 100
+                        const finalDiscount = discountValue > 100 ? 100 : discountValue;
+                        row.find('.discount').val(finalDiscount);
+                        row.find('.discount-type').val('percentage');
+                    } else if (discountType === 'fixed') {
+                        const quantity = parseFloat(row.find('.quantity').val()) || 0;
+                        const subtotal = quantity * unitPrice;
+                        // Check if fixed discount exceeds subtotal
+                        const finalDiscount = discountValue > subtotal ? subtotal : discountValue;
+                        row.find('.discount').val(finalDiscount);
+                        row.find('.discount-type').val('fixed');
+                    }
+                    
+                    calculateRowTotal(row);
+                }
+            });
+            
+            calculateTotals();
+            toastr.success('Discount applied to all items');
+        } else {
+            toastr.warning('Please enter a discount value');
+        }
+    });
+    
     // Auto-fill HSN, SKU, and Description when item is selected
     $(document).on('change', '.select2-item', function() {
         const selectedOption = $(this).find('option:selected');
@@ -722,10 +891,8 @@
         // Get HSN and SKU from data attributes
         const hsnCode = selectedOption.data('hsn');
         const sku = selectedOption.data('sku');
-
-         const discount = selectedOption.data('discount');
-         const discountType = selectedOption.data('discount-type') || 'percentage';
-    
+        const discount = selectedOption.data('discount');
+        const discountType = selectedOption.data('discount-type') || 'percentage';
         
         // Fill HSN code
         if(hsnCode) {
@@ -736,17 +903,15 @@
         if(sku) {
             row.find('.sku').val(sku);
         }
-
         
-           if(discount !== undefined && discount !== '') {
-        row.find('.discount').val(discount);
-    }
-    
-
-    if(discountType) {
-        row.find('.discount-type').val(discountType);
-    }
-
+        if(discount !== undefined && discount !== '') {
+            row.find('.discount').val(discount);
+        }
+        
+        if(discountType) {
+            row.find('.discount-type').val(discountType);
+        }
+        
         // Fill description with item name
         if(selectedText && selectedText !== '') {
             row.find('.item-description').val(selectedText);
@@ -761,7 +926,7 @@
     // Updated getItemDetails function to include HSN and SKU
     function getItemDetails(itemId, row) {
         $.ajax({
-            url: '{{ route("quotation.get-item-details") }}', // Update your route
+            url: '{{ route("quotation.get-item-details") }}',
             type: 'POST',
             data: {
                 _token: '{{ csrf_token() }}',
@@ -784,12 +949,14 @@
                         row.find('.sku').val(response.sku);
                     }
                     
-                     if(response.discount_type) {
-                    row.find('.discount-type').val(response.discount_type);
-                }
-                     if(response.discount !== undefined) {
-                    row.find('.discount').val(response.discount);
-                }
+                    if(response.discount_type) {
+                        row.find('.discount-type').val(response.discount_type);
+                    }
+                    
+                    if(response.discount !== undefined) {
+                        row.find('.discount').val(response.discount);
+                    }
+                    
                     // Update price if available
                     if(response.price && response.price > 0) {
                         row.find('.unit-price').val(response.price);
@@ -807,27 +974,30 @@
         });
     }
     
-    // Update calculateRowTotal function to handle percentage discount
+    // Update calculateRowTotal function to handle both percentage and fixed discount
     function calculateRowTotal(row) {
         const quantity = parseFloat(row.find('.quantity').val()) || 0;
         const unitPrice = parseFloat(row.find('.unit-price').val()) || 0;
-        const discountPercentage = parseFloat(row.find('.discount').val()) || 0;
+        const discountValue = parseFloat(row.find('.discount').val()) || 0;
+        const discountType = row.find('.discount-type').val();
         const taxPercentage = parseFloat(row.find('.tax-percentage').val()) || 0;
         
         let subtotal = quantity * unitPrice;
         let discountAmount = 0;
         
-        if(discountPercentage > 0) {
-            discountAmount = subtotal * discountPercentage / 100;
+        if(discountValue > 0) {
+            if(discountType === 'percentage') {
+                discountAmount = subtotal * discountValue / 100;
+            } else if(discountType === 'fixed') {
+                discountAmount = discountValue;
+                // Ensure discount doesn't exceed subtotal
+                if(discountAmount > subtotal) {
+                    discountAmount = subtotal;
+                    row.find('.discount').val(subtotal);
+                }
+            }
         }
         
-         if(discountValue > 0) {
-        if(discountType === 'percentage') {
-            discountAmount = subtotal * discountValue / 100;
-        } else if(discountType === 'fixed') {
-            discountAmount = discountValue;
-        }
-    }
         const taxableAmount = subtotal - discountAmount;
         const taxAmount = taxableAmount * taxPercentage / 100;
         const total = taxableAmount + taxAmount;
@@ -835,420 +1005,444 @@
         row.find('.total-amount').val(total.toFixed(2));
     }
     
-    // Update event listeners for new fields
-    $(document).on('keyup change', '.quantity, .unit-price, .discount, .tax-percentage, .hsn, .sku', function() {
+    // Update calculateTotals function
+    function calculateTotals() {
+        let subtotal = 0;
+        let totalDiscount = 0;
+        let totalTax = 0;
+        let totalCgst = 0;
+        let totalSgst = 0;
+        let totalIgst = 0;
+        let totalItems = 0;
+        let totalQuantity = 0;
+        let taxableAmount = 0;
+        
+        // Calculate items totals
+        $('#itemsBody tr').each(function() {
+            const row = $(this);
+            const quantity = parseFloat(row.find('.quantity').val()) || 0;
+            const unitPrice = parseFloat(row.find('.unit-price').val()) || 0;
+            const discountValue = parseFloat(row.find('.discount').val()) || 0;
+            const discountType = row.find('.discount-type').val();
+            const taxPercentage = parseFloat(row.find('.tax-percentage').val()) || 0;
+            
+            // Count items and quantities
+            if (unitPrice > 0) {
+                totalItems++;
+            }
+            totalQuantity += quantity;
+            
+            const itemSubtotal = quantity * unitPrice;
+            let itemDiscount = 0;
+            
+            if(discountValue > 0) {
+                if(discountType === 'percentage') {
+                    itemDiscount = itemSubtotal * discountValue / 100;
+                } else if(discountType === 'fixed') {
+                    itemDiscount = discountValue;
+                    if(itemDiscount > itemSubtotal) {
+                        itemDiscount = itemSubtotal;
+                    }
+                }
+                totalDiscount += itemDiscount;
+            }
+            
+            const itemTaxable = itemSubtotal - itemDiscount;
+            const itemTax = itemTaxable * taxPercentage / 100;
+            totalTax += itemTax;
+            
+            // Calculate CGST/SGST/IGST based on tax regime
+            const taxRegime = $('#tax_regime').val();
+            if(taxRegime === 'cgst_sgst') {
+                totalCgst += itemTax / 2;
+                totalSgst += itemTax / 2;
+            } else if(taxRegime === 'igst') {
+                totalIgst += itemTax;
+            }
+            
+            subtotal += itemTaxable + itemTax;
+        });
+        
+        taxableAmount = subtotal - totalDiscount;
+        
+        // Calculate other charges
+        let otherChargesTotal = 0;
+        let otherChargesArray = [];
+        
+        $('.other-charge-row').each(function() {
+            const row = $(this);
+            const name = row.find('.charge-name').val();
+            const amount = parseFloat(row.find('.charge-amount').val()) || 0;
+            const type = row.find('.charge-type').val();
+            const taxRate = parseFloat(row.find('.charge-tax').val()) || 0;
+            
+            let chargeAmount = amount;
+            if (type === 'percentage') {
+                // Apply percentage on taxable amount
+                chargeAmount = taxableAmount * amount / 100;
+            }
+            
+            // Calculate tax on charge
+            const chargeTax = chargeAmount * taxRate / 100;
+            const chargeTotal = chargeAmount + chargeTax;
+            
+            otherChargesTotal += chargeTotal;
+            
+            // Add to array
+            otherChargesArray.push({
+                name: name,
+                amount: amount,
+                type: type,
+                tax_rate: taxRate,
+                tax_amount: chargeTax,
+                total: chargeTotal
+            });
+            
+            // Add to tax totals
+            const taxRegime = $('#tax_regime').val();
+            if(taxRegime === 'cgst_sgst') {
+                totalCgst += chargeTax / 2;
+                totalSgst += chargeTax / 2;
+            } else if(taxRegime === 'igst') {
+                totalIgst += chargeTax;
+            }
+            
+            totalTax += chargeTax;
+        });
+        
+        // Update other charges hidden input
+        $('#otherChargesInput').val(JSON.stringify(otherChargesArray));
+        $('#otherChargesTotalInput').val(otherChargesTotal);
+        
+        // Calculate final totals
+        const totalBeforeRoundOff = subtotal + otherChargesTotal;
+        
+        // Calculate round off (nearest whole number)
+        const roundOff = Math.round(totalBeforeRoundOff) - totalBeforeRoundOff;
+        const grandTotal = totalBeforeRoundOff + roundOff;
+        
+        // Update display
+        $('#totalItems').text(totalItems);
+        $('#totalQuantity').text(totalQuantity.toFixed(2));
+        $('#subtotal').text(subtotal.toFixed(2));
+        $('#totalDiscountDisplay').text(totalDiscount.toFixed(2));
+        $('#taxableAmount').text(taxableAmount.toFixed(2));
+        $('#totalCgst').text(totalCgst.toFixed(2));
+        $('#totalSgst').text(totalSgst.toFixed(2));
+        $('#totalIgst').text(totalIgst.toFixed(2));
+        $('#totalTax').text(totalTax.toFixed(2));
+        $('#grandTotal').text(grandTotal.toFixed(2));
+        
+        // Style round off
+        const roundOffElement = $('#roundOff');
+        if (roundOff > 0) {
+            roundOffElement.addClass('text-success').removeClass('text-danger');
+            roundOffElement.text('+' + roundOff.toFixed(2));
+        } else if (roundOff < 0) {
+            roundOffElement.addClass('text-danger').removeClass('text-success');
+            roundOffElement.text(roundOff.toFixed(2));
+        } else {
+            roundOffElement.removeClass('text-success text-danger');
+            roundOffElement.text('0.00');
+        }
+        
+        // Update hidden inputs
+        $('#subtotalInput').val(subtotal);
+        $('#totalDiscountInput').val(totalDiscount);
+        $('#taxableAmountInput').val(taxableAmount);
+        $('#otherChargesTotalInput').val(otherChargesTotal);
+        $('#cgstInput').val(totalCgst);
+        $('#sgstInput').val(totalSgst);
+        $('#igstInput').val(totalIgst);
+        $('#totalTaxInput').val(totalTax);
+        $('#roundOffInput').val(roundOff);
+        $('#grandTotalInput').val(grandTotal);
+    }
+    
+    // Update event listeners
+    $(document).on('keyup change', '.quantity, .unit-price, .discount, .discount-type, .tax-percentage, .hsn, .sku', function() {
         const row = $(this).closest('tr');
         calculateRowTotal(row);
         calculateTotals();
     });
-        
-        // Remove item row
-        $(document).on('click', '.remove-item', function() {
-            if($('#itemsBody tr').length > 1) {
-                $(this).closest('tr').remove();
-                calculateTotals();
-            }
-        });
-        
-        // Calculate item totals
     
-        
-        // Load customer details
-        $('#customer_id').change(function() {
-            const customerId = $(this).val();
-            if(customerId) {
-                $.ajax({
-                    url: '{{ route("quotation.get-customer-details") }}',
-                    type: 'POST',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        customer_id: customerId
-                    },
-                    success: function(response) {
-                        if(response.success) {
-                            $('#customer_email').val(response.email);
-                            $('#customer_phone').val(response.mobile);
-                            $('#customer_gst_no').val(response.gst_no);
-                            $('#customer_state').val(response.state);
-                            $('#customerDetails').show();
-                            
-                            if(response.contact_person) {
-                                $('#contact_person').val(response.contact_person);
-                            }
-                            
-                            // Set tax regime based on customer state
-                            setTaxRegime(response.state);
-                        }
-                    }
-                });
-            } else {
-                $('#customerDetails').hide();
-                clearCustomerFields();
-                $('#tax_regime').val('').trigger('change');
-            }
-        });
-        
-        // Auto-fill description when item is selected - FIXED VERSION
-        $(document).on('change', '.select2-item', function() {
-            const selectedText = $(this).find('option:selected').text();
-            const descriptionField = $(this).closest('tr').find('.item-description');
-            
-            // Always update description when item changes
-            if(selectedText && selectedText !== '') {
-                descriptionField.val(selectedText);
-            }
-            
-            const itemId = $(this).val();
-            if(itemId) {
-                getItemPrice(itemId, $(this).closest('tr'));
-            }
-        });
-        
-        // Get item details via AJAX - UPDATED to get description
-        function getItemDetails(itemId, row) {
-            $.ajax({
-                url: '{{ route("quotation.get-item-price") }}',
-                type: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    item_id: itemId
-                },
-                success: function(response) {
-                    if(response.success) {
-                        // Update description if available
-                        if(response.description) {
-                            row.find('.item-description').val(response.description);
-                        }
-                        
-                        // Update price if available
-                        if(response.price && response.price > 0) {
-                            row.find('.unit-price').val(response.price);
-                        }
-                        
-                        // If item has default tax rate, set it
-                        if(response.tax_rate !== undefined) {
-                            row.find('.tax-percentage').val(response.tax_rate);
-                        }
-                        
-                        calculateRowTotal(row);
-                        calculateTotals();
-                    }
-                }
-            });
+    $(document).on('keyup change', '.charge-name, .charge-amount, .charge-type, .charge-tax', function() {
+        calculateTotals();
+    });
+    
+    // Remove item row
+    $(document).on('click', '.remove-item', function() {
+        if($('#itemsBody tr').length > 1) {
+            $(this).closest('tr').remove();
+            calculateTotals();
         }
-        
-        // Get item price via AJAX - ORIGINAL FUNCTION
-        function getItemPrice(itemId, row) {
-            $.ajax({
-                url: '{{ route("quotation.get-item-price") }}',
-                type: 'POST',
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    item_id: itemId
-                },
-                success: function(response) {
-                    if(response.success && response.price > 0) {
-                        row.find('.unit-price').val(response.price);
-                        
-                        // If item has default tax rate, set it
-                        if(response.tax_rate !== undefined) {
-                            row.find('.tax-percentage').val(response.tax_rate);
-                        }
-                        
-                        calculateRowTotal(row);
-                        calculateTotals();
-                    }
-                }
-            });
-        }
-        
-        // Refresh customer list after adding new customer
-        function refreshCustomerList() {
+    });
+    
+    // Load customer details
+    $('#customer_id').change(function() {
+        const customerId = $(this).val();
+        if(customerId) {
             $.ajax({
                 url: '{{ route("quotation.get-customer-details") }}',
-                type: 'GET',
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    customer_id: customerId
+                },
                 success: function(response) {
                     if(response.success) {
-                        // Clear and repopulate customer dropdown
-                        $('#customer_id').empty();
-                        $('#customer_id').append('<option value="">{{ __('Search Customer...') }}</option>');
+                        $('#customer_email').val(response.email);
+                        $('#customer_phone').val(response.mobile);
+                        $('#customer_gst_no').val(response.gst_no);
+                        $('#customer_state').val(response.state);
+                        $('#customerDetails').show();
                         
-                        $.each(response.customers, function(id, customer) {
-                            $('#customer_id').append(
-                                '<option value="' + customer.id + '">' + 
-                                customer.name + 
-                                (customer.mobile ? ' - ' + customer.mobile : '') + 
-                                (customer.email ? ' - ' + customer.email : '') + 
-                                '</option>'
-                            );
-                        });
+                        if(response.contact_person) {
+                            $('#contact_person').val(response.contact_person);
+                        }
+                        
+                        // Set tax regime based on customer state
+                        setTaxRegime(response.state);
+                    }
+                }
+            });
+        } else {
+            $('#customerDetails').hide();
+            clearCustomerFields();
+            $('#tax_regime').val('').trigger('change');
+        }
+    });
+    
+    // Refresh customer list after adding new customer
+    function refreshCustomerList() {
+        $.ajax({
+            url: '{{ route("quotation.get-customer-details") }}',
+            type: 'GET',
+            success: function(response) {
+                if(response.success) {
+                    // Clear and repopulate customer dropdown
+                    $('#customer_id').empty();
+                    $('#customer_id').append('<option value="">{{ __('Search Customer...') }}</option>');
+                    
+                    $.each(response.customers, function(id, customer) {
+                        $('#customer_id').append(
+                            '<option value="' + customer.id + '">' + 
+                            customer.name + 
+                            (customer.mobile ? ' - ' + customer.mobile : '') + 
+                            (customer.email ? ' - ' + customer.email : '') + 
+                            '</option>'
+                        );
+                    });
+                    
+                    // Reinitialize Select2
+                    $('#customer_id').select2({
+                        placeholder: 'Search Customer...',
+                        allowClear: true,
+                        width: '100%'
+                    });
+                    
+                    toastr.success('Customer list refreshed successfully');
+                }
+            }
+        });
+    }
+    
+    // Refresh item list after adding new item
+    function refreshItemList() {
+        $.ajax({
+            url: '{{ route("quotation.get-item-price") }}',
+            type: 'GET',
+            success: function(response) {
+                if(response.success) {
+                    // Update all item dropdowns
+                    $('.select2-item').each(function() {
+                        const currentValue = $(this).val();
+                        $(this).empty();
+                        $(this).append('<option value="">{{ __('Search Item...') }}</option>');
+                        
+                        $.each(response.items, function(id, name) {
+                            $(this).append('<option value="' + id + '">' + name + '</option>');
+                        }.bind(this));
+                        
+                        // Restore previous selection
+                        if(currentValue) {
+                            $(this).val(currentValue).trigger('change');
+                        }
                         
                         // Reinitialize Select2
-                        $('#customer_id').select2({
-                            placeholder: 'Search Customer...',
+                        $(this).select2({
+                            placeholder: 'Search Item...',
                             allowClear: true,
                             width: '100%'
                         });
-                        
-                        toastr.success('Customer list refreshed successfully');
-                    }
+                    });
+                    
+                    toastr.success('Item list refreshed successfully');
                 }
-            });
-        }
-        
-        // Refresh item list after adding new item
-        function refreshItemList() {
-            $.ajax({
-                url: '{{ route("quotation.get-item-price") }}',
-                type: 'GET',
-                success: function(response) {
-                    if(response.success) {
-                        // Update all item dropdowns
-                        $('.select2-item').each(function() {
-                            const currentValue = $(this).val();
-                            $(this).empty();
-                            $(this).append('<option value="">{{ __('Search Item...') }}</option>');
-                            
-                            $.each(response.items, function(id, name) {
-                                $(this).append('<option value="' + id + '">' + name + '</option>');
-                            }.bind(this));
-                            
-                            // Restore previous selection
-                            if(currentValue) {
-                                $(this).val(currentValue).trigger('change');
-                            }
-                            
-                            // Reinitialize Select2
-                            $(this).select2({
-                                placeholder: 'Search Item...',
-                                allowClear: true,
-                                width: '100%'
-                            });
-                        });
-                        
-                        toastr.success('Item list refreshed successfully');
-                    }
-                }
-            });
-        }
-        
-        // Set tax regime based on customer state
-        function setTaxRegime(customerState) {
-            const companyState = 'Maharashtra'; // Set your company state
-            
-            if(customerState === companyState) {
-                $('#tax_regime').val('cgst_sgst').trigger('change');
-                $('#taxRegimeMessage').text('Same state - CGST + SGST applicable');
-            } else {
-                $('#tax_regime').val('igst').trigger('change');
-                $('#taxRegimeMessage').text('Interstate - IGST applicable');
-            }
-        }
-        
-        // Apply global tax type to all items
-        $('#tax_type').change(function() {
-            const taxType = $(this).val();
-            let taxRate = 18; // Default
-            
-            switch(taxType) {
-                case 'tax_0':
-                    taxRate = 0;
-                    break;
-                case 'tax_5':
-                    taxRate = 5;
-                    break;
-                case 'tax_12':
-                    taxRate = 12;
-                    break;
-                case 'tax_18':
-                    taxRate = 18;
-                    break;
-                case 'tax_28':
-                    taxRate = 28;
-                    break;
-            }
-            
-            // Apply tax rate to all items
-            $('.tax-percentage').val(taxRate);
-            
-            // Recalculate all rows
-            $('#itemsBody tr').each(function() {
-                calculateRowTotal($(this));
-            });
-            
-            calculateTotals();
-        });
-        
-        @if(session('converted_enquiry') && isset(session('converted_enquiry')['customer_id']))
-            $('#customer_id').val('{{ session("converted_enquiry")["customer_id"] }}').trigger('change');
-        @endif
-        
-        function calculateRowTotal(row) {
-            const quantity = parseFloat(row.find('.quantity').val()) || 0;
-            const unitPrice = parseFloat(row.find('.unit-price').val()) || 0;
-            const discount = parseFloat(row.find('.discount').val()) || 0;
-            const taxPercentage = parseFloat(row.find('.tax-percentage').val()) || 0;
-            
-            let subtotal = quantity * unitPrice;
-            let discountAmount = 0;
-            
-            if(discount > 0) {
-                discountAmount = subtotal * discount / 100;
-            }
-            
-            const taxableAmount = subtotal - discountAmount;
-            const taxAmount = taxableAmount * taxPercentage / 100;
-            const total = taxableAmount + taxAmount;
-            
-            row.find('.total-amount').val(total.toFixed(2));
-        }
-        
-        function calculateTotals() {
-            let subtotal = 0;
-            let totalDiscount = 0;
-            let totalTax = 0;
-            let totalCgst = 0;
-            let totalSgst = 0;
-            let totalIgst = 0;
-            
-            $('#itemsBody tr').each(function() {
-                const rowTotal = parseFloat($(this).find('.total-amount').val()) || 0;
-                subtotal += rowTotal;
-                
-                const quantity = parseFloat($(this).find('.quantity').val()) || 0;
-                const unitPrice = parseFloat($(this).find('.unit-price').val()) || 0;
-                const discount = parseFloat($(this).find('.discount').val()) || 0;
-                const taxPercentage = parseFloat($(this).find('.tax-percentage').val()) || 0;
-                
-                const itemSubtotal = quantity * unitPrice;
-                let itemDiscount = 0;
-                
-                if(discount > 0) {
-                    itemDiscount = itemSubtotal * discount / 100;
-                    totalDiscount += itemDiscount;
-                }
-                
-                const itemTaxable = itemSubtotal - itemDiscount;
-                const itemTax = itemTaxable * taxPercentage / 100;
-                totalTax += itemTax;
-                
-                // Calculate CGST/SGST/IGST based on tax regime
-                const taxRegime = $('#tax_regime').val();
-                if(taxRegime === 'cgst_sgst') {
-                    totalCgst += itemTax / 2;
-                    totalSgst += itemTax / 2;
-                } else if(taxRegime === 'igst') {
-                    totalIgst += itemTax;
-                }
-            });
-            
-            const taxableAmount = subtotal - totalDiscount;
-            const grandTotal = subtotal;
-            
-            // Update display
-            $('#subtotal').text(subtotal.toFixed(2));
-            $('#totalDiscount').text(totalDiscount.toFixed(2));
-            $('#taxableAmount').text(taxableAmount.toFixed(2));
-            $('#totalCgst').text(totalCgst.toFixed(2));
-            $('#totalSgst').text(totalSgst.toFixed(2));
-            $('#totalIgst').text(totalIgst.toFixed(2));
-            $('#totalTax').text(totalTax.toFixed(2));
-            $('#grandTotal').text(grandTotal.toFixed(2));
-            
-            // Update hidden inputs
-            $('#subtotalInput').val(subtotal);
-            $('#totalDiscountInput').val(totalDiscount);
-            $('#taxableAmountInput').val(taxableAmount);
-            $('#cgstInput').val(totalCgst);
-            $('#sgstInput').val(totalSgst);
-            $('#igstInput').val(totalIgst);
-            $('#totalTaxInput').val(totalTax);
-            $('#grandTotalInput').val(grandTotal);
-        }
-        
-        function clearCustomerFields() {
-            $('#customer_email').val('');
-            $('#customer_phone').val('');
-            $('#customer_gst_no').val('');
-            $('#customer_state').val('');
-            $('#contact_person').val('');
-        }
-        
-        // Recalculate when tax regime changes
-        $('#tax_regime').change(function() {
-            calculateTotals();
-        });
-        
-        // Form validation
-        $('#quotationForm').submit(function(e) {
-            let isValid = true;
-            let errorMessages = [];
-            
-            if($('#customer_id').val() === '') {
-                errorMessages.push('Please select a customer');
-                $('#customer_id').select2('open');
-                isValid = false;
-            }
-            
-            if($('#contact_person').val().trim() === '') {
-                errorMessages.push('Please enter contact person');
-                $('#contact_person').focus();
-                isValid = false;
-            }
-            
-            if($('#salesman_id').val() === '') {
-                errorMessages.push('Please select a sales engineer');
-                $('#salesman_id').select2('open');
-                isValid = false;
-            }
-            
-            if($('#quotation_code').val().trim() === '') {
-                errorMessages.push('Please enter quotation number');
-                $('#quotation_code').focus();
-                isValid = false;
-            }
-            
-            let hasValidItems = false;
-            $('#itemsBody tr').each(function(index) {
-                const itemId = $(this).find('.select2-item').val();
-                const quantity = $(this).find('.quantity').val();
-                const unitPrice = $(this).find('.unit-price').val();
-                
-                if(!itemId) {
-                    errorMessages.push(`Item ${index + 1}: Please select an item`);
-                }
-                
-                if(!quantity || parseFloat(quantity) <= 0) {
-                    errorMessages.push(`Item ${index + 1}: Please enter a valid quantity`);
-                }
-                
-                if(!unitPrice || parseFloat(unitPrice) < 0) {
-                    errorMessages.push(`Item ${index + 1}: Please enter a valid unit price`);
-                }
-                
-                if(itemId && quantity > 0 && unitPrice > 0) {
-                    hasValidItems = true;
-                }
-            });
-            
-            if(!hasValidItems) {
-                errorMessages.push('Please add at least one valid item');
-            }
-            
-            if(!isValid) {
-                e.preventDefault();
-                alert(errorMessages.join('\n'));
             }
         });
+    }
+    
+    // Set tax regime based on customer state
+    function setTaxRegime(customerState) {
+        const companyState = 'Maharashtra'; // Set your company state
         
-        // Listen for messages from new windows (customer/item creation)
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.action === 'customer_created') {
-                refreshCustomerList();
-            } else if (event.data && event.data.action === 'item_created') {
-                refreshItemList();
-            }
-        }, false);
+        if(customerState === companyState) {
+            $('#tax_regime').val('cgst_sgst').trigger('change');
+            $('#taxRegimeMessage').text('Same state - CGST + SGST applicable');
+        } else {
+            $('#tax_regime').val('igst').trigger('change');
+            $('#taxRegimeMessage').text('Interstate - IGST applicable');
+        }
+    }
+    
+    // Apply global tax type to all items
+    $('#tax_type').change(function() {
+        const taxType = $(this).val();
+        let taxRate = 18; // Default
+        
+        switch(taxType) {
+            case 'tax_0':
+                taxRate = 0;
+                break;
+            case 'tax_5':
+                taxRate = 5;
+                break;
+            case 'tax_12':
+                taxRate = 12;
+                break;
+            case 'tax_18':
+                taxRate = 18;
+                break;
+            case 'tax_28':
+                taxRate = 28;
+                break;
+        }
+        
+        // Apply tax rate to all items
+        $('.tax-percentage').val(taxRate);
+        
+        // Apply tax rate to all other charges
+        $('.charge-tax').val(taxRate);
+        
+        // Recalculate all rows
+        $('#itemsBody tr').each(function() {
+            calculateRowTotal($(this));
+        });
+        
+        calculateTotals();
     });
+    
+    // Recalculate when tax regime changes
+    $('#tax_regime').change(function() {
+        calculateTotals();
+    });
+    
+    @if(session('converted_enquiry') && isset(session('converted_enquiry')['customer_id']))
+        $('#customer_id').val('{{ session("converted_enquiry")["customer_id"] }}').trigger('change');
+    @endif
+    
+    function clearCustomerFields() {
+        $('#customer_email').val('');
+        $('#customer_phone').val('');
+        $('#customer_gst_no').val('');
+        $('#customer_state').val('');
+        $('#contact_person').val('');
+    }
+    
+    // Form validation
+    $('#quotationForm').submit(function(e) {
+        let isValid = true;
+        let errorMessages = [];
+        
+        if($('#customer_id').val() === '') {
+            errorMessages.push('Please select a customer');
+            $('#customer_id').select2('open');
+            isValid = false;
+        }
+        
+        if($('#contact_person').val().trim() === '') {
+            errorMessages.push('Please enter contact person');
+            $('#contact_person').focus();
+            isValid = false;
+        }
+        
+        if($('#salesman_id').val() === '') {
+            errorMessages.push('Please select a sales engineer');
+            $('#salesman_id').select2('open');
+            isValid = false;
+        }
+        
+        if($('#quotation_code').val().trim() === '') {
+            errorMessages.push('Please enter quotation number');
+            $('#quotation_code').focus();
+            isValid = false;
+        }
+        
+        let hasValidItems = false;
+        $('#itemsBody tr').each(function(index) {
+            const itemId = $(this).find('.select2-item').val();
+            const quantity = $(this).find('.quantity').val();
+            const unitPrice = $(this).find('.unit-price').val();
+            
+            if(!itemId) {
+                errorMessages.push(`Item ${index + 1}: Please select an item`);
+            }
+            
+            if(!quantity || parseFloat(quantity) <= 0) {
+                errorMessages.push(`Item ${index + 1}: Please enter a valid quantity`);
+            }
+            
+            if(!unitPrice || parseFloat(unitPrice) < 0) {
+                errorMessages.push(`Item ${index + 1}: Please enter a valid unit price`);
+            }
+            
+            // Validate discount
+            const discount = parseFloat($(this).find('.discount').val()) || 0;
+            const discountType = $(this).find('.discount-type').val();
+            const itemSubtotal = parseFloat(quantity) * parseFloat(unitPrice);
+            
+            if(discountType === 'fixed' && discount > itemSubtotal) {
+                errorMessages.push(`Item ${index + 1}: Fixed discount cannot exceed item subtotal`);
+            }
+            
+            if(itemId && quantity > 0 && unitPrice > 0) {
+                hasValidItems = true;
+            }
+        });
+        
+        if(!hasValidItems) {
+            errorMessages.push('Please add at least one valid item');
+        }
+        
+        // Validate other charges
+        $('.other-charge-row').each(function(index) {
+            const name = $(this).find('.charge-name').val();
+            const amount = parseFloat($(this).find('.charge-amount').val()) || 0;
+            
+            if(name && name.trim() !== '' && amount < 0) {
+                errorMessages.push(`Other Charge ${index + 1}: Amount cannot be negative`);
+            }
+            
+            if(name && name.trim() === '' && amount > 0) {
+                errorMessages.push(`Other Charge ${index + 1}: Please enter charge name`);
+            }
+        });
+        
+        if(!isValid) {
+            e.preventDefault();
+            alert(errorMessages.join('\n'));
+        }
+    });
+    
+    // Listen for messages from new windows (customer/item creation)
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.action === 'customer_created') {
+            refreshCustomerList();
+        } else if (event.data && event.data.action === 'item_created') {
+            refreshItemList();
+        }
+    }, false);
+});
 </script>
 @endpush
