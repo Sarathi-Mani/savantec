@@ -253,157 +253,204 @@
                         </div>
                         
                         <!-- Items Section -->
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0">{{ __('Items') }}</h6>
-                                    <a href="{{ route('items.create') }}" 
-                                       class="btn btn-sm btn-outline-primary add-new-link">
-                                        <i class="ti ti-plus"></i> {{ __('Add New Item') }}
-                                    </a>
+                      <!-- Items Section -->
+<div class="card mb-3">
+    <div class="card-header bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">{{ __('Items') }}</h6>
+            <a href="{{ route('items.create') }}" 
+               class="btn btn-sm btn-outline-primary add-new-link">
+                <i class="ti ti-plus"></i> {{ __('Add New Item') }}
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table" id="itemsTable">
+                <thead>
+                    <tr>
+                        <th width="20%">{{ __('Item*') }}</th>
+                        <th width="15%">{{ __('HSN Code') }}</th>
+                        <th width="15%">{{ __('SKU') }}</th>
+                        <th width="15%">{{ __('Description') }}</th>
+                        <th width="8%">{{ __('Qty*') }}</th>
+                        <th width="8%">{{ __('Unit Price*') }}</th>
+                        <th width="8%">{{ __('Discount') }}</th>
+                        <th width="8%">{{ __('Tax %') }}</th>
+                        <th width="8%">{{ __('Total') }}</th>
+                        <th width="5%">{{ __('Action') }}</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody">
+                    @if(session('converted_enquiry') && isset(session('converted_enquiry')['items']))
+                        @php
+                            $enquiryItems = session('converted_enquiry')['items'] ?? [];
+                        @endphp
+                        @foreach($enquiryItems as $index => $item)
+                            <tr data-index="{{ $index }}">
+                                <td>
+                                    <select class="form-control select2-item" name="items[{{ $index }}][item_id]" required>
+                                        <option value="">{{ __('Search Item...') }}</option>
+                                        @foreach($items as $id => $name)
+                                            <option value="{{ $id }}"
+                                                @if(isset($item['item_id']) && $item['item_id'] == $id) selected 
+                                                @elseif(isset($item['description']) && $item['description'] == $name) selected @endif
+                                                data-hsn="{{ $item['hsn'] ?? '' }}"
+                                                data-sku="{{ $item['sku'] ?? '' }}"
+                                                data-discount="{{ $itemDetails[$id]['discount'] ?? 0 }}"> 
+                                                {{ $name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control hsn" 
+                                           name="items[{{ $index }}][hsn]" 
+                                           value="{{ $item['hsn'] ?? '' }}"
+                                           placeholder="{{ __('HSN') }}">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control sku" 
+                                           name="items[{{ $index }}][sku]" 
+                                           value="{{ $item['sku'] ?? '' }}"
+                                           placeholder="{{ __('SKU') }}">
+                                </td>
+                                <td>
+                                    <textarea class="form-control item-description" name="items[{{ $index }}][description]" rows="1">{{ $item['description'] ?? ($item['item_id'] ?? '') }}</textarea>
+                                </td>
+                                <td>
+                                    <input type="number" class="form-control quantity" 
+                                           name="items[{{ $index }}][quantity]" min="0.01" step="0.01" 
+                                           value="{{ $item['quantity'] ?? 1 }}" required>
+                                </td>
+                                <td>
+                                    <input type="number" class="form-control unit-price" 
+                                           name="items[{{ $index }}][unit_price]" min="0" step="0.01" 
+                                           value="{{ $item['unit_price'] ?? ($item['sales_price'] ?? 0) }}" required>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control discount" 
+                                               name="items[{{ $index }}][discount]" min="0" max="100" step="0.01" 
+                                               value="{{ $item['discount'] ?? 0 }}">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <select class="form-control tax-percentage" name="items[{{ $index }}][tax_percentage]">
+                                            <option value="0">0%</option>
+                                            <option value="5">5%</option>
+                                            <option value="12">12%</option>
+                                            <option value="18" selected>18%</option>
+                                            <option value="28">28%</option>
+                                        </select>
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control total-amount" 
+                                           name="items[{{ $index }}][total_amount]" readonly
+                                           value="{{ isset($item['total_amount']) ? number_format($item['total_amount'], 2) : '0.00' }}">
+                                </td>
+                                <td>
+                                    @if($loop->first && count($enquiryItems) == 1)
+                                        <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
+                                            <i class="ti ti-trash"></i>
+                                        </button>
+                                    @else
+                                        <button type="button" class="btn btn-sm btn-danger remove-item">
+                                            <i class="ti ti-trash"></i>
+                                        </button>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    @else
+                        <!-- Default first row -->
+                        <tr data-index="0">
+                            <td>
+                                <select class="form-control select2-item" name="items[0][item_id]" required>
+                                    <option value="">{{ __('Search Item...') }}</option>
+                                    @foreach($items as $id => $name)
+                                        <option value="{{ $id }}" 
+                                            data-hsn="{{ $itemDetails[$id]['hsn'] ?? '' }}"
+                                            data-sku="{{ $itemDetails[$id]['sku'] ?? '' }}"
+                                            data-discount="{{ $itemDetails[$id]['discount'] ?? 0 }}">
+                                            {{ $name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control hsn" 
+                                       name="items[0][hsn]" 
+                                       value=""
+                                       placeholder="{{ __('HSN Code') }}">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control sku" 
+                                       name="items[0][sku]" 
+                                       value=""
+                                       placeholder="{{ __('SKU') }}">
+                            </td>
+                            <td>
+                                <textarea class="form-control item-description" name="items[0][description]" rows="1"></textarea>
+                            </td>
+                            <td>
+                                <input type="number" class="form-control quantity" 
+                                       name="items[0][quantity]" min="0.01" step="0.01" 
+                                       value="1" required>
+                            </td>
+                            <td>
+                                <input type="number" class="form-control unit-price" 
+                                       name="items[0][unit_price]" min="0" step="0.01" 
+                                       value="0" required>
+                            </td>
+                            <td>
+                                <div class="input-group">
+                                    <input type="number" class="form-control discount" 
+                                           name="items[0][discount]" min="0" max="100" step="0.01" 
+                                           value="0">
+                                   <select class="form-control discount-type" name="items[0][discount_type]" style="max-width: 80px;">     
+                                        <option value="percentage" @if(($item['discount_type'] ?? 'percentage') == 'percentage') selected @endif>%</option>
+                                            <option value="fixed" @if(($item['discount_type'] ?? 'percentage') == 'fixed') selected @endif>₹</option>
+                                        </select>
                                 </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table" id="itemsTable">
-                                        <thead>
-                                            <tr>
-                                                <th width="25%">{{ __('Item*') }}</th>
-                                                <th width="30%">{{ __('Description') }}</th>
-                                                <th width="10%">{{ __('Qty*') }}</th>
-                                                <th width="10%">{{ __('Unit Price*') }}</th>
-                                                <th width="10%">{{ __('Discount') }}</th>
-                                                <th width="10%">{{ __('Tax %') }}</th>
-                                                <th width="10%">{{ __('Total') }}</th>
-                                                <th width="5%">{{ __('Action') }}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="itemsBody">
-                                            @if(session('converted_enquiry') && isset(session('converted_enquiry')['items']))
-                                                @php
-                                                    $enquiryItems = session('converted_enquiry')['items'] ?? [];
-                                                @endphp
-                                                @foreach($enquiryItems as $index => $item)
-                                                    <tr data-index="{{ $index }}">
-                                                        <td>
-                                                            <select class="form-control select2-item" name="items[{{ $index }}][item_id]" required>
-                                                                <option value="">{{ __('Search Item...') }}</option>
-                                                                @foreach($items as $id => $name)
-                                                                    <option value="{{ $id }}"
-                                                                        @if(isset($item['item_id']) && $item['item_id'] == $id) selected 
-                                                                        @elseif(isset($item['description']) && $item['description'] == $name) selected @endif>
-                                                                        {{ $name }}
-                                                                    </option>
-                                                                @endforeach
-                                                            </select>
-                                                        </td>
-                                                        <td>
-                                                            <textarea class="form-control item-description" name="items[{{ $index }}][description]" rows="1">{{ $item['description'] ?? ($item['item_id'] ?? '') }}</textarea>
-                                                        </td>
-                                                        <td>
-                                                            <input type="number" class="form-control quantity" 
-                                                                   name="items[{{ $index }}][quantity]" min="0.01" step="0.01" 
-                                                                   value="{{ $item['quantity'] ?? 1 }}" required>
-                                                        </td>
-                                                        <td>
-                                                            <input type="number" class="form-control unit-price" 
-                                                                   name="items[{{ $index }}][unit_price]" min="0" step="0.01" 
-                                                                   value="{{ $item['unit_price'] ?? ($item['sales_price'] ?? 0) }}" required>
-                                                        </td>
-                                                        <td>
-                                                            <input type="number" class="form-control discount" 
-                                                                   name="items[{{ $index }}][discount]" min="0" step="0.01" 
-                                                                   value="0">
-                                                        </td>
-                                                        <td>
-                                                            <select class="form-control tax-percentage" name="items[{{ $index }}][tax_percentage]">
-                                                                <option value="0">0%</option>
-                                                                <option value="5">5%</option>
-                                                                <option value="12">12%</option>
-                                                                <option value="18" selected>18%</option>
-                                                                <option value="28">28%</option>
-                                                            </select>
-                                                        </td>
-                                                        <td>
-                                                            <input type="text" class="form-control total-amount" 
-                                                                   name="items[{{ $index }}][total_amount]" readonly
-                                                                   value="{{ isset($item['total_amount']) ? number_format($item['total_amount'], 2) : '0.00' }}">
-                                                        </td>
-                                                        <td>
-                                                            @if($loop->first && count($enquiryItems) == 1)
-                                                                <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
-                                                                    <i class="ti ti-trash"></i>
-                                                                </button>
-                                                            @else
-                                                                <button type="button" class="btn btn-sm btn-danger remove-item">
-                                                                    <i class="ti ti-trash"></i>
-                                                                </button>
-                                                            @endif
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            @else
-                                                <!-- Default first row -->
-                                                <tr data-index="0">
-                                                    <td>
-                                                        <select class="form-control select2-item" name="items[0][item_id]" required>
-                                                            <option value="">{{ __('Search Item...') }}</option>
-                                                            @foreach($items as $id => $name)
-                                                                <option value="{{ $id }}">{{ $name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    </td>
-                                                    <td>
-                                                        <textarea class="form-control item-description" name="items[0][description]" rows="1"></textarea>
-                                                    </td>
-                                                    <td>
-                                                        <input type="number" class="form-control quantity" 
-                                                               name="items[0][quantity]" min="0.01" step="0.01" 
-                                                               value="1" required>
-                                                    </td>
-                                                    <td>
-                                                        <input type="number" class="form-control unit-price" 
-                                                               name="items[0][unit_price]" min="0" step="0.01" 
-                                                               value="0" required>
-                                                    </td>
-                                                    <td>
-                                                        <input type="number" class="form-control discount" 
-                                                               name="items[0][discount]" min="0" step="0.01" 
-                                                               value="0">
-                                                    </td>
-                                                    <td>
-                                                        <select class="form-control tax-percentage" name="items[0][tax_percentage]">
-                                                            <option value="0">0%</option>
-                                                            <option value="5">5%</option>
-                                                            <option value="12">12%</option>
-                                                            <option value="18" selected>18%</option>
-                                                            <option value="28">28%</option>
-                                                        </select>
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="form-control total-amount" 
-                                                               name="items[0][total_amount]" readonly
-                                                               value="0.00">
-                                                    </td>
-                                                    <td>
-                                                        <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
-                                                            <i class="ti ti-trash"></i>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            @endif
-                                        </tbody>
-                                    </table>
+                            </td>
+                            <td>
+                                <div class="input-group">
+                                    <select class="form-control tax-percentage" name="items[0][tax_percentage]">
+                                        <option value="0">0%</option>
+                                        <option value="5">5%</option>
+                                        <option value="12">12%</option>
+                                        <option value="18" selected>18%</option>
+                                        <option value="28">28%</option>
+                                    </select>
                                 </div>
-                                
-                                <div class="text-end mt-3">
-                                    <button type="button" class="btn btn-primary" id="addItem">
-                                        <i class="ti ti-plus"></i> {{ __('Add Item') }}
-                                    </button>
-                                    
-                                </div>
-                            </div>
-                        </div>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control total-amount" 
+                                       name="items[0][total_amount]" readonly
+                                       value="0.00">
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-danger remove-item" disabled>
+                                    <i class="ti ti-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    @endif
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="text-end mt-3">
+            <button type="button" class="btn btn-primary" id="addItem">
+                <i class="ti ti-plus"></i> {{ __('Add Item') }}
+            </button>
+        </div>
+    </div>
+</div>
                         
                         <!-- Summary Section -->
                         <div class="row">
@@ -576,37 +623,62 @@
         
         calculateTotals();
         
-        // Add new item row
-        $('#addItem').click(function() {
-            const newRow = `
-                <tr data-index="${itemIndex}">
-                    <td>
-                        <select class="form-control select2-item" name="items[${itemIndex}][item_id]" required>
-                            <option value="">{{ __('Search Item...') }}</option>
-                            @foreach($items as $id => $name)
-                                <option value="{{ $id }}">{{ $name }}</option>
-                            @endforeach
-                        </select>
-                    </td>
-                    <td>
-                        <textarea class="form-control item-description" name="items[${itemIndex}][description]" rows="1"></textarea>
-                    </td>
-                    <td>
-                        <input type="number" class="form-control quantity" 
-                               name="items[${itemIndex}][quantity]" min="0.01" step="0.01" 
-                               value="1" required>
-                    </td>
-                    <td>
-                        <input type="number" class="form-control unit-price" 
-                               name="items[${itemIndex}][unit_price]" min="0" step="0.01" 
-                               value="0" required>
-                    </td>
-                    <td>
+       $('#addItem').click(function() {
+        const newRow = `
+            <tr data-index="${itemIndex}">
+                <td>
+                    <select class="form-control select2-item" name="items[${itemIndex}][item_id]" required>
+                        <option value="">{{ __('Search Item...') }}</option>
+                        @foreach($items as $id => $name)
+                            <option value="{{ $id }}" 
+                                data-hsn="{{ $itemDetails[$id]['hsn'] ?? '' }}"
+                                data-sku="{{ $itemDetails[$id]['sku'] ?? '' }}"
+                                data-discount="{{ $itemDetails[$id]['discount'] ?? 0 }}"
+                                 data-discount-type="{{ $itemDetails[$id]['discount_type'] ?? 'percentage' }}"><!-- Add discount here -->
+                                {{ $name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </td>
+                <td>
+                    <input type="text" class="form-control hsn" 
+                           name="items[${itemIndex}][hsn]" 
+                           value=""
+                           placeholder="{{ __('HSN Code') }}">
+                </td>
+                <td>
+                    <input type="text" class="form-control sku" 
+                           name="items[${itemIndex}][sku]" 
+                           value=""
+                           placeholder="{{ __('SKU') }}">
+                </td>
+                <td>
+                    <textarea class="form-control item-description" name="items[${itemIndex}][description]" rows="1"></textarea>
+                </td>
+                <td>
+                    <input type="number" class="form-control quantity" 
+                           name="items[${itemIndex}][quantity]" min="0.01" step="0.01" 
+                           value="1" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control unit-price" 
+                           name="items[${itemIndex}][unit_price]" min="0" step="0.01" 
+                           value="0" required>
+                </td>
+                <td>
+                    <div class="input-group">
                         <input type="number" class="form-control discount" 
-                               name="items[${itemIndex}][discount]" min="0" step="0.01" 
+                               name="items[${itemIndex}][discount]" min="0" max="100" step="0.01" 
                                value="0">
-                    </td>
-                    <td>
+                               <select class="form-control discount-type" name="items[${itemIndex}][discount_type]" style="max-width: 80px;">
+    <option value="percentage" selected>%</option>
+    <option value="fixed">₹</option>
+</select>
+                        <span class="input-group-text">%</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="input-group">
                         <select class="form-control tax-percentage" name="items[${itemIndex}][tax_percentage]">
                             <option value="0">0%</option>
                             <option value="5">5%</option>
@@ -614,31 +686,161 @@
                             <option value="18" selected>18%</option>
                             <option value="28">28%</option>
                         </select>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control total-amount" 
-                               name="items[${itemIndex}][total_amount]" readonly
-                               value="0.00">
-                    </td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-item">
-                            <i class="ti ti-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-            
-            $('#itemsBody').append(newRow);
-            
-            $(`[name="items[${itemIndex}][item_id]"]`).select2({
-                placeholder: 'Search Item...',
-                allowClear: true,
-                width: '100%'
-            });
-            
-            itemIndex++;
-            calculateTotals();
+                    </div>
+                </td>
+                <td>
+                    <input type="text" class="form-control total-amount" 
+                           name="items[${itemIndex}][total_amount]" readonly
+                           value="0.00">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger remove-item">
+                        <i class="ti ti-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+        
+        $('#itemsBody').append(newRow);
+        
+        $(`[name="items[${itemIndex}][item_id]"]`).select2({
+            placeholder: 'Search Item...',
+            allowClear: true,
+            width: '100%'
         });
+        
+        itemIndex++;
+        calculateTotals();
+    });
+    
+    // Auto-fill HSN, SKU, and Description when item is selected
+    $(document).on('change', '.select2-item', function() {
+        const selectedOption = $(this).find('option:selected');
+        const selectedText = selectedOption.text();
+        const row = $(this).closest('tr');
+        
+        // Get HSN and SKU from data attributes
+        const hsnCode = selectedOption.data('hsn');
+        const sku = selectedOption.data('sku');
+
+         const discount = selectedOption.data('discount');
+         const discountType = selectedOption.data('discount-type') || 'percentage';
+    
+        
+        // Fill HSN code
+        if(hsnCode) {
+            row.find('.hsn').val(hsnCode);
+        }
+        
+        // Fill SKU
+        if(sku) {
+            row.find('.sku').val(sku);
+        }
+
+        
+           if(discount !== undefined && discount !== '') {
+        row.find('.discount').val(discount);
+    }
+    
+
+    if(discountType) {
+        row.find('.discount-type').val(discountType);
+    }
+
+        // Fill description with item name
+        if(selectedText && selectedText !== '') {
+            row.find('.item-description').val(selectedText);
+        }
+        
+        const itemId = $(this).val();
+        if(itemId) {
+            getItemDetails(itemId, row);
+        }
+    });
+    
+    // Updated getItemDetails function to include HSN and SKU
+    function getItemDetails(itemId, row) {
+        $.ajax({
+            url: '{{ route("quotation.get-item-details") }}', // Update your route
+            type: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                item_id: itemId
+            },
+            success: function(response) {
+                if(response.success) {
+                    // Update description if available
+                    if(response.description) {
+                        row.find('.item-description').val(response.description);
+                    }
+                    
+                    // Update HSN code if available
+                    if(response.hsn) {
+                        row.find('.hsn').val(response.hsn);
+                    }
+                    
+                    // Update SKU if available
+                    if(response.sku) {
+                        row.find('.sku').val(response.sku);
+                    }
+                    
+                     if(response.discount_type) {
+                    row.find('.discount-type').val(response.discount_type);
+                }
+                     if(response.discount !== undefined) {
+                    row.find('.discount').val(response.discount);
+                }
+                    // Update price if available
+                    if(response.price && response.price > 0) {
+                        row.find('.unit-price').val(response.price);
+                    }
+                    
+                    // If item has default tax rate, set it
+                    if(response.tax_rate !== undefined) {
+                        row.find('.tax-percentage').val(response.tax_rate);
+                    }
+                    
+                    calculateRowTotal(row);
+                    calculateTotals();
+                }
+            }
+        });
+    }
+    
+    // Update calculateRowTotal function to handle percentage discount
+    function calculateRowTotal(row) {
+        const quantity = parseFloat(row.find('.quantity').val()) || 0;
+        const unitPrice = parseFloat(row.find('.unit-price').val()) || 0;
+        const discountPercentage = parseFloat(row.find('.discount').val()) || 0;
+        const taxPercentage = parseFloat(row.find('.tax-percentage').val()) || 0;
+        
+        let subtotal = quantity * unitPrice;
+        let discountAmount = 0;
+        
+        if(discountPercentage > 0) {
+            discountAmount = subtotal * discountPercentage / 100;
+        }
+        
+         if(discountValue > 0) {
+        if(discountType === 'percentage') {
+            discountAmount = subtotal * discountValue / 100;
+        } else if(discountType === 'fixed') {
+            discountAmount = discountValue;
+        }
+    }
+        const taxableAmount = subtotal - discountAmount;
+        const taxAmount = taxableAmount * taxPercentage / 100;
+        const total = taxableAmount + taxAmount;
+        
+        row.find('.total-amount').val(total.toFixed(2));
+    }
+    
+    // Update event listeners for new fields
+    $(document).on('keyup change', '.quantity, .unit-price, .discount, .tax-percentage, .hsn, .sku', function() {
+        const row = $(this).closest('tr');
+        calculateRowTotal(row);
+        calculateTotals();
+    });
         
         // Remove item row
         $(document).on('click', '.remove-item', function() {
@@ -649,11 +851,7 @@
         });
         
         // Calculate item totals
-        $(document).on('keyup change', '.quantity, .unit-price, .discount, .tax-percentage', function() {
-            const row = $(this).closest('tr');
-            calculateRowTotal(row);
-            calculateTotals();
-        });
+    
         
         // Load customer details
         $('#customer_id').change(function() {

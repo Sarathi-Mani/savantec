@@ -136,11 +136,28 @@ public function create()
         // Replace 'Item' with your actual model name
         $itemsModel = '\App\Models\Items'; // Change this to your actual Item model
         
+        $items = [];
+        $itemDetails = [];
+        
         if (class_exists($itemsModel)) {
-            $items = $itemsModel::where('created_by', Auth::user()->creatorId())
+            $itemRecords = $itemsModel::where('created_by', Auth::user()->creatorId())
                                 ->where('deleted_at', NULL)
                                 ->orderBy('name')
-                                ->pluck('name', 'id');
+                                ->get();
+            
+            // Prepare items array for dropdown
+            foreach ($itemRecords as $item) {
+                $items[$item->id] = $item->name;
+                $itemDetails[$item->id] = [
+                    'hsn' => $item->hsn?? '',
+                    'sku' => $item->sku ?? '',
+                     'discount' => $item->discount ?? 0,
+                    'description' => $item->description ?? '',
+                    'discount_type' => $item->discount_type ?? 'percentage',
+                    'price' => $item->sales_price ?? 0,
+                    'tax_rate' => $item->tax_rate ?? 18
+                ];
+            }
         }
         
         // Generate quotation code - FIXED REGEX PATTERN
@@ -167,13 +184,13 @@ public function create()
             'items',
             'quotationCode',
             'enquiryData',
-            'selectedCustomerId' // Changed to selectedCustomerId
+            'selectedCustomerId',
+            'itemDetails' // Add this line
         ));
     }
     
     return redirect()->back()->with('error', __('Permission denied.'));
 }
-
 
 
 
@@ -732,7 +749,24 @@ public function update(Request $request, $id)
     
     return redirect()->back()->with('error', __('Permission denied.'));
 }
-
+// In your QuotationController.php
+public function getItemDetails(Request $request)
+{
+    $item = Item::find($request->item_id);
+    
+    if ($item) {
+        return response()->json([
+            'success' => true,
+            'price' => $item->sales_price,
+            'hsn_code' => $item->hsn_code,
+            'sku' => $item->sku,
+            'description' => $item->description,
+            'tax_rate' => $item->tax_rate,
+        ]);
+    }
+    
+    return response()->json(['success' => false]);
+}
     /**
      * Remove the specified resource from storage.
      */

@@ -1852,7 +1852,9 @@ Route::get('quotation/datatable', [QuotationController::class, 'datatable'])->na
 Route::post('/quotation/get-contact-persons', [QuotationController::class, 'getContactPersons'])->name('quotation.get-contact-persons');
 Route::post('/quotation/get-item-price', [QuotationController::class, 'getItemPrice'])->name('quotation.get-item-price');
 Route::post('/quotation/get-gst-type', [QuotationController::class, 'getGstType'])->name('quotation.get-gst-type');
-
+// In your routes/web.php
+Route::post('/quotation/get-item-details', [QuotationController::class, 'getItemDetails'])
+    ->name('quotation.get-item-details');
 
 Route::resource('quotation', QuotationController::class)->middleware(['auth', 'XSS', 'revalidate']);
 Route::get('quotations', [QuotationController::class, 'index'])->name('quotations.index');
