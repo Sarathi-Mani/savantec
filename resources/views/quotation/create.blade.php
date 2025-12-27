@@ -488,7 +488,7 @@
                                     <div class="card-body">
                                         <div class="row mb-3">
                                             <div class="col-md-12">
-                                                <label for="payment_terms" class="form-label">{{ __('Payment Terms') }}</label>
+                                                <label for="payment_terms" class="form-label">{{ __('Remarks') }}</label>
                                                 <textarea class="form-control" id="payment_terms" 
                                                           name="payment_terms" rows="3" placeholder="{{ __('Enter payment terms...') }}">{{ old('payment_terms') }}</textarea>
                                             </div>
@@ -1147,16 +1147,16 @@ $(document).ready(function() {
         }
         
         // Update hidden inputs
-        $('#subtotalInput').val(subtotal);
-        $('#totalDiscountInput').val(totalDiscount);
-        $('#taxableAmountInput').val(taxableAmount);
-        $('#otherChargesTotalInput').val(otherChargesTotal);
-        $('#cgstInput').val(totalCgst);
-        $('#sgstInput').val(totalSgst);
-        $('#igstInput').val(totalIgst);
-        $('#totalTaxInput').val(totalTax);
-        $('#roundOffInput').val(roundOff);
-        $('#grandTotalInput').val(grandTotal);
+      $('#subtotalInput').val(subtotal.toFixed(2));
+$('#totalDiscountInput').val(totalDiscount.toFixed(2));
+$('#taxableAmountInput').val(taxableAmount.toFixed(2));
+$('#otherChargesTotalInput').val(otherChargesTotal.toFixed(2));
+$('#cgstInput').val(totalCgst.toFixed(2));
+$('#sgstInput').val(totalSgst.toFixed(2));
+$('#igstInput').val(totalIgst.toFixed(2));
+$('#totalTaxInput').val(totalTax.toFixed(2));
+$('#roundOffInput').val(roundOff.toFixed(2));
+$('#grandTotalInput').val(grandTotal.toFixed(2));
     }
     
     // Update event listeners

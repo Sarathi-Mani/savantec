@@ -11,6 +11,7 @@ use App\Models\Customer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Log; 
+use PDF;
 
 class QuotationController extends Controller
 {
@@ -103,6 +104,8 @@ class QuotationController extends Controller
         return redirect()->back()->with('error', __('Permission denied.'));
     }
 
+
+    
     
 
 public function create()
@@ -217,20 +220,64 @@ public function create()
 /**
  * Generate PDF for quotation
  */
+/**
+ * Generate PDF for quotation
+ */
 public function pdf($id)
 {
     if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')
     {
-        $quotation = Quotation::with('items')->findOrFail($id);
+        $quotation = Quotation::with(['items', 'salesman', 'customer'])->findOrFail($id);
         
         // Check if quotation belongs to current company
         if($quotation->company_id != Auth::user()->creatorId()) {
             return redirect()->back()->with('error', __('Permission denied.'));
         }
         
-        // For now, redirect to print page
-        // TODO: Implement actual PDF generation
-        return redirect()->route('quotation.print', $id);
+        // Format amount in words
+        $amountInWords = $this->numberToWords($quotation->grand_total);
+        
+        // Pass company info from authenticated user
+        $company_info = [
+            'company_name' => \Auth::user()->company_name ?? 'Company Name',
+            'company_address' => \Auth::user()->company_address ?? 'Company Address',
+            'company_city' => \Auth::user()->company_city ?? 'City',
+            'company_state' => \Auth::user()->company_state ?? 'State',
+            'company_zip_code' => \Auth::user()->company_zip_code ?? 'ZIP Code',
+            'company_email' => \Auth::user()->company_email ?? 'Email',
+            'company_phone' => \Auth::user()->company_phone ?? 'Phone',
+            'company_gstin' => \Auth::user()->company_gstin ?? 'GST Number',
+            'company_logo' => \Auth::user()->company_logo ?? null,
+        ];
+        
+        // Create PDF
+        $data = compact('quotation', 'amountInWords') + $company_info;
+        
+        $pdf = PDF::loadView('quotation.print', $data);
+        
+        // Set PDF options
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->setOptions([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'sans-serif',
+            'isPhpEnabled' => true,
+        ]);
+        
+        // Clean filename - remove invalid characters
+        $filename = str_replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], '-', $quotation->quotation_code);
+        $filename = 'quotation-' . $filename . '.pdf';
+        
+        // Check action parameter
+        $action = request()->get('action', 'download');
+        
+        if ($action === 'view') {
+            // Show in browser
+            return $pdf->stream($filename);
+        } else {
+            // Download directly
+            return $pdf->download($filename);
+        }
     }
     
     return redirect()->back()->with('error', __('Permission denied.'));
@@ -371,6 +418,9 @@ public function datatable(Request $request)
 /**
  * Store a newly created resource in storage.
  */
+/**
+ * Store a newly created resource in storage.
+ */
 public function store(Request $request)
 {
     if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')
@@ -406,6 +456,19 @@ public function store(Request $request)
             'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.discount_type' => 'nullable|in:percentage,fixed',
             'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.description' => 'nullable|string',
+            'expire_date' => 'nullable|date',
+            'reference' => 'nullable|string|max:255',
+            'reference_no' => 'nullable|string|max:255',
+            'reference_date' => 'nullable|date',
+            'tax_type' => 'nullable|string|max:50',
+            'tax_regime' => 'nullable|string|in:cgst_sgst,igst',
+            'payment_terms' => 'nullable|string',
+            'description' => 'nullable|string',
+            'enquiry_id' => 'nullable|exists:enquiries,id',
+            'round_off' => 'nullable|numeric',
+            'other_charges' => 'nullable|array',
+            'other_charges_total' => 'nullable|numeric',
         ]);
         
         if ($validator->fails()) {
@@ -426,23 +489,39 @@ public function store(Request $request)
             $customerState = $customer->shipping_state;
             $gstType = $this->determineGstType($customerState, $supplierState);
             
-            // Calculate totals
-            $subtotal = $request->subtotal ?? 0;
-            $totalCgst = $request->cgst ?? 0;
-            $totalSgst = $request->sgst ?? 0;
-            $totalIgst = $request->igst ?? 0;
-            $totalDiscount = $request->total_discount ?? 0;
-            $grandTotal = $request->grand_total ?? 0;
+            // Calculate totals with PROPER TYPE CASTING
+            $subtotal = (float)($request->subtotal ?? 0);
+            $totalCgst = (float)($request->cgst ?? 0);
+            $totalSgst = (float)($request->sgst ?? 0);
+            $totalIgst = (float)($request->igst ?? 0);
+            $totalDiscount = (float)($request->total_discount ?? 0);
+            $grandTotal = (float)($request->grand_total ?? 0);
             $totalItems = count($request->items);
-            $totalQuantity = array_sum(array_column($request->items, 'quantity'));
+            $totalQuantity = (float)array_sum(array_column($request->items, 'quantity'));
+            
+            // IMPORTANT: Cast all decimal values properly
+            $taxableAmount = is_numeric($request->taxable_amount) ? (float)$request->taxable_amount : 0;
+            $totalTax = is_numeric($request->total_tax) ? (float)$request->total_tax : 0;
+            $roundOff = is_numeric($request->round_off) ? (float)$request->round_off : 0;
+            $otherChargesTotal = is_numeric($request->other_charges_total) ? (float)$request->other_charges_total : 0;
+            
+            // Parse other charges JSON if exists
+            $otherCharges = [];
+            if ($request->has('other_charges') && !empty($request->other_charges)) {
+                if (is_string($request->other_charges)) {
+                    $otherCharges = json_decode($request->other_charges, true);
+                } else {
+                    $otherCharges = $request->other_charges;
+                }
+            }
             
             // Create quotation
             $quotation = new Quotation();
             $quotation->quotation_code = $request->quotation_code;
             $quotation->customer_id = $request->customer_id;
             $quotation->customer_name = $customer->name;
-            $quotation->customer_email = $customer->email;
-            $quotation->customer_mobile = $customer->mobile;
+            $quotation->customer_email = $customer->email ?? null;
+            $quotation->customer_mobile = $customer->mobile ?? null;
             $quotation->contact_person = $request->contact_person;
             $quotation->quotation_date = $request->quotation_date;
             $quotation->expire_date = $request->expire_date;
@@ -455,17 +534,36 @@ public function store(Request $request)
             $quotation->gst_type = $gstType;
             $quotation->tax_type = $request->tax_type;
             $quotation->tax_regime = $request->tax_regime;
+            
+            // Total fields - ALL must be proper decimals
             $quotation->subtotal = $subtotal;
             $quotation->total_discount = $totalDiscount;
+            $quotation->taxable_amount = $taxableAmount;
             $quotation->cgst = $totalCgst;
             $quotation->sgst = $totalSgst;
             $quotation->igst = $totalIgst;
+            $quotation->total_tax = $totalTax;
             $quotation->grand_total = $grandTotal;
             $quotation->total_items = $totalItems;
             $quotation->total_quantity = $totalQuantity;
+            $quotation->round_off = $roundOff;
+            $quotation->other_charges_total = $otherChargesTotal;
+            
+            // Store other charges as JSON
+            if (!empty($otherCharges)) {
+                $quotation->other_charges = json_encode($otherCharges);
+            } else {
+                $quotation->other_charges = null; // Or empty string
+            }
+            
             $quotation->description = $request->description;
             $quotation->created_by = Auth::id();
             $quotation->company_id = Auth::user()->creatorId();
+            
+            // Add enquiry reference if exists
+            if ($request->has('enquiry_id')) {
+                $quotation->enquiry_id = $request->enquiry_id;
+            }
             
             \Log::info('Saving quotation with data:', $quotation->toArray());
             
@@ -486,16 +584,17 @@ public function store(Request $request)
                     
                     $quotationItem = new QuotationItem();
                     $quotationItem->quotation_id = $quotation->id;
-                    $quotationItem->item_name = $itemName; // Store item name instead of ID
+                    $quotationItem->item_id = $itemData['item_id']; // Store item ID
+                    $quotationItem->item_name = $itemName;
                     $quotationItem->description = $itemData['description'] ?? '';
                     
-                    // Store HSN and SKU if your table has these columns (add them if not)
+                    // Store HSN and SKU
                     $quotationItem->hsn_code = $itemData['hsn'] ?? '';
                     $quotationItem->sku = $itemData['sku'] ?? '';
                     
-                    $quotationItem->quantity = $itemData['quantity'] ?? 0;
-                    $quotationItem->unit_price = $itemData['unit_price'] ?? 0;
-                    $quotationItem->discount = $itemData['discount'] ?? 0;
+                    $quotationItem->quantity = (float)($itemData['quantity'] ?? 0);
+                    $quotationItem->unit_price = (float)($itemData['unit_price'] ?? 0);
+                    $quotationItem->discount = (float)($itemData['discount'] ?? 0);
                     
                     // Fix: Convert 'percentage' to 'percent' if needed
                     $discountType = $itemData['discount_type'] ?? 'percentage';
@@ -505,8 +604,11 @@ public function store(Request $request)
                         $quotationItem->discount_type = $discountType;
                     }
                     
+                    // Store tax percentage
+                    $taxPercentage = (float)($itemData['tax_percentage'] ?? 18);
+                    $quotationItem->tax_percentage = $taxPercentage;
+                    
                     // Calculate tax rates
-                    $taxPercentage = $itemData['tax_percentage'] ?? 18;
                     if($gstType === 'cgst_sgst') {
                         $quotationItem->cgst_rate = $taxPercentage / 2;
                         $quotationItem->sgst_rate = $taxPercentage / 2;
@@ -518,9 +620,9 @@ public function store(Request $request)
                     }
                     
                     // Calculate total
-                    $quantity = $itemData['quantity'] ?? 0;
-                    $unitPrice = $itemData['unit_price'] ?? 0;
-                    $discount = $itemData['discount'] ?? 0;
+                    $quantity = (float)($itemData['quantity'] ?? 0);
+                    $unitPrice = (float)($itemData['unit_price'] ?? 0);
+                    $discount = (float)($itemData['discount'] ?? 0);
                     $discountType = $itemData['discount_type'] ?? 'percentage';
                     
                     $itemSubtotal = $quantity * $unitPrice;
@@ -537,6 +639,12 @@ public function store(Request $request)
                     $totalAmount = $taxableAmount + $taxAmount;
                     
                     $quotationItem->total_amount = $totalAmount;
+                    $quotationItem->tax_amount = $taxAmount;
+                    
+                    // Store additional calculated fields
+                    $quotationItem->subtotal = $itemSubtotal;
+                    $quotationItem->discount_amount = $discountAmount;
+                    $quotationItem->taxable_amount = $taxableAmount;
                     
                     if (!$quotationItem->save()) {
                         \Log::error('Failed to save quotation item:', $itemData);
@@ -550,12 +658,24 @@ public function store(Request $request)
             DB::commit();
             \Log::info('=== QUOTATION STORE COMPLETED SUCCESSFULLY ===');
             
+            // Clear the converted enquiry session data
+            session()->forget('converted_enquiry');
+            
             return redirect()->route('quotation.index')->with('success', __('Quotation created successfully.'));
             
         } catch (\Exception $e) {
             DB::rollback();
             \Log::error('Quotation Creation Error: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            // Log the actual error details
+            if (strpos($e->getMessage(), 'Unable to cast value') !== false) {
+                \Log::error('Decimal casting error. Check these values:');
+                \Log::error('taxable_amount: ' . ($request->taxable_amount ?? 'null'));
+                \Log::error('total_tax: ' . ($request->total_tax ?? 'null'));
+                \Log::error('other_charges_total: ' . ($request->other_charges_total ?? 'null'));
+                \Log::error('round_off: ' . ($request->round_off ?? 'null'));
+            }
             
             return redirect()->back()
                 ->with('error', __('Error creating quotation: ') . $e->getMessage())
@@ -707,24 +827,62 @@ private function updateItemDetails($itemData)
     /**
      * Display the specified resource.
      */
-    public function show($id)
+   public function show($id)
+{
+    if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')
     {
-        if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')
-        {
-            $quotation = Quotation::with('items')->findOrFail($id);
-            
-            // Check if quotation belongs to current company
-            if($quotation->company_id != Auth::user()->creatorId()) {
-                return redirect()->back()->with('error', __('Permission denied.'));
-            }
-            
-            return view('quotation.show', compact('quotation'));
+        $quotation = Quotation::with(['items', 'salesman', 'customer'])->findOrFail($id);
+        
+        // Check if quotation belongs to current company
+        if($quotation->company_id != Auth::user()->creatorId()) {
+            return redirect()->back()->with('error', __('Permission denied.'));
         }
         
-        return redirect()->back()->with('error', __('Permission denied.'));
+        // Format amount in words
+        $amountInWords = $this->numberToWords($quotation->grand_total);
+        
+        return view('quotation.show', compact('quotation', 'amountInWords'));
     }
-
+    
+    return redirect()->back()->with('error', __('Permission denied.'));
+}
+// Add this to a helper file or in your controller
+public function numberToWords($number)
+{
+    $decimal = round($number - ($no = floor($number)), 2) * 100;
+    $hundred = null;
+    $digits_length = strlen($no);
+    $i = 0;
+    $str = array();
+    $words = array(0 => '', 1 => 'one', 2 => 'two',
+        3 => 'three', 4 => 'four', 5 => 'five', 6 => 'six',
+        7 => 'seven', 8 => 'eight', 9 => 'nine',
+        10 => 'ten', 11 => 'eleven', 12 => 'twelve',
+        13 => 'thirteen', 14 => 'fourteen', 15 => 'fifteen',
+        16 => 'sixteen', 17 => 'seventeen', 18 => 'eighteen',
+        19 => 'nineteen', 20 => 'twenty', 30 => 'thirty',
+        40 => 'forty', 50 => 'fifty', 60 => 'sixty',
+        70 => 'seventy', 80 => 'eighty', 90 => 'ninety');
+    $digits = array('', 'hundred','thousand','lakh', 'crore');
+    while( $i < $digits_length ) {
+        $divider = ($i == 2) ? 10 : 100;
+        $number = floor($no % $divider);
+        $no = floor($no / $divider);
+        $i += $divider == 10 ? 1 : 2;
+        if ($number) {
+            $plural = (($counter = count($str)) && $number > 9) ? 's' : null;
+            $hundred = ($counter == 1 && $str[0]) ? ' and ' : null;
+            $str [] = ($number < 21) ? $words[$number].' '. $digits[$counter]. $plural.' '.$hundred:$words[floor($number / 10) * 10].' '.$words[$number % 10]. ' '.$digits[$counter].$plural.' '.$hundred;
+        } else $str[] = null;
+    }
+    $Rupees = implode('', array_reverse($str));
+    $paise = ($decimal > 0) ? " and " . ($words[$decimal / 10] . " " . $words[$decimal % 10]) . ' Paise' : '';
+    return ($Rupees ? $Rupees . 'Rupees ' : '') . $paise;
+}
    /**
+ * Show the form for editing the specified resource.
+ */
+/**
  * Show the form for editing the specified resource.
  */
 public function edit($id)
@@ -753,14 +911,30 @@ public function edit($id)
                             ->pluck('name', 'id');
         }
         
-        // Get items from Items module - using the same logic as create method
-        $itemsModel = '\App\Models\Items'; // Change this to your actual Item model
+        // Get items from Items module
+        $itemsModel = '\App\Models\Items';
+        $items = [];
+        $itemDetails = [];
         
         if (class_exists($itemsModel)) {
-            $items = $itemsModel::where('created_by', Auth::user()->creatorId())
+            $itemRecords = $itemsModel::where('created_by', Auth::user()->creatorId())
                                 ->where('deleted_at', NULL)
                                 ->orderBy('name')
-                                ->pluck('name', 'id');
+                                ->get();
+            
+            // Prepare items array for dropdown
+            foreach ($itemRecords as $item) {
+                $items[$item->id] = $item->name;
+                $itemDetails[$item->id] = [
+                    'hsn' => $item->hsn ?? '',
+                    'sku' => $item->sku ?? '',
+                    'discount' => $item->discount ?? 0,
+                    'description' => $item->description ?? '',
+                    'discount_type' => $item->discount_type ?? 'percentage',
+                    'price' => $item->sales_price ?? 0,
+                    'tax_rate' => $item->tax_rate ?? 18
+                ];
+            }
         } else {
             // Fallback dummy items if model doesn't exist
             $items = [
@@ -772,12 +946,23 @@ public function edit($id)
             ];
         }
         
-        return view('quotation.edit', compact('quotation', 'customers', 'salesmen', 'items'));
+        // Decode other charges if exists
+        $otherCharges = json_decode($quotation->other_charges, true) ?? [];
+        
+        return view('quotation.edit', compact(
+            'quotation', 
+            'customers', 
+            'salesmen', 
+            'items',
+            'itemDetails',
+            'otherCharges'
+        ));
     }
     
     return redirect()->back()->with('error', __('Permission denied.'));
 }
- /**
+
+/**
  * Update the specified resource in storage.
  */
 public function update(Request $request, $id)
@@ -792,6 +977,8 @@ public function update(Request $request, $id)
         }
         
         \Log::info('=== QUOTATION UPDATE STARTED ===');
+        \Log::info('User ID: ' . Auth::id());
+        \Log::info('Quotation ID: ' . $id);
         \Log::info('Request Data:', $request->all());
         
         $validator = \Validator::make($request->all(), [
@@ -802,17 +989,31 @@ public function update(Request $request, $id)
             'salesman_id' => 'required|exists:users,id',
             'quotation_code' => 'required|string|unique:quotations,quotation_code,' . $id,
             'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|string|max:255',
+            'items.*.item_id' => 'required',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.hsn' => 'nullable|string|max:100',
             'items.*.sku' => 'nullable|string|max:100',
             'items.*.discount' => 'nullable|numeric|min:0',
             'items.*.discount_type' => 'nullable|in:percentage,fixed',
+            'items.*.tax_percentage' => 'nullable|numeric|min:0|max:100',
+            'items.*.description' => 'nullable|string',
+            'expire_date' => 'nullable|date',
+            'reference' => 'nullable|string|max:255',
+            'reference_no' => 'nullable|string|max:255',
+            'reference_date' => 'nullable|date',
+            'tax_type' => 'nullable|string|max:50',
+            'tax_regime' => 'nullable|string|in:cgst_sgst,igst',
+            'payment_terms' => 'nullable|string',
+            'description' => 'nullable|string',
+            'round_off' => 'nullable|numeric',
+            'other_charges' => 'nullable|array',
+            'other_charges_total' => 'nullable|numeric',
         ]);
         
         if ($validator->fails()) {
             \Log::error('Validation Errors:', $validator->errors()->toArray());
+            \Log::error('Failed Validation Data:', $request->all());
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -823,27 +1024,43 @@ public function update(Request $request, $id)
             
             $customer = Customer::findOrFail($request->customer_id);
             
-            // Determine GST type
+            // Determine GST type based on customer shipping state
             $supplierState = 'Tamil Nadu';
             $customerState = $customer->shipping_state;
             $gstType = $this->determineGstType($customerState, $supplierState);
             
-            // Calculate totals
-            $subtotal = $request->subtotal ?? 0;
-            $totalCgst = $request->cgst ?? 0;
-            $totalSgst = $request->sgst ?? 0;
-            $totalIgst = $request->igst ?? 0;
-            $totalDiscount = $request->total_discount ?? 0;
-            $grandTotal = $request->grand_total ?? 0;
+            // Calculate totals with PROPER TYPE CASTING
+            $subtotal = (float)($request->subtotal ?? 0);
+            $totalCgst = (float)($request->cgst ?? 0);
+            $totalSgst = (float)($request->sgst ?? 0);
+            $totalIgst = (float)($request->igst ?? 0);
+            $totalDiscount = (float)($request->total_discount ?? 0);
+            $grandTotal = (float)($request->grand_total ?? 0);
             $totalItems = count($request->items);
-            $totalQuantity = array_sum(array_column($request->items, 'quantity'));
+            $totalQuantity = (float)array_sum(array_column($request->items, 'quantity'));
+            
+            // IMPORTANT: Cast all decimal values properly
+            $taxableAmount = is_numeric($request->taxable_amount) ? (float)$request->taxable_amount : 0;
+            $totalTax = is_numeric($request->total_tax) ? (float)$request->total_tax : 0;
+            $roundOff = is_numeric($request->round_off) ? (float)$request->round_off : 0;
+            $otherChargesTotal = is_numeric($request->other_charges_total) ? (float)$request->other_charges_total : 0;
+            
+            // Parse other charges JSON if exists
+            $otherCharges = [];
+            if ($request->has('other_charges') && !empty($request->other_charges)) {
+                if (is_string($request->other_charges)) {
+                    $otherCharges = json_decode($request->other_charges, true);
+                } else {
+                    $otherCharges = $request->other_charges;
+                }
+            }
             
             // Update quotation
             $quotation->quotation_code = $request->quotation_code;
             $quotation->customer_id = $request->customer_id;
             $quotation->customer_name = $customer->name;
-            $quotation->customer_email = $customer->email;
-            $quotation->customer_mobile = $customer->mobile;
+            $quotation->customer_email = $customer->email ?? null;
+            $quotation->customer_mobile = $customer->mobile ?? null;
             $quotation->contact_person = $request->contact_person;
             $quotation->quotation_date = $request->quotation_date;
             $quotation->expire_date = $request->expire_date;
@@ -856,17 +1073,30 @@ public function update(Request $request, $id)
             $quotation->gst_type = $gstType;
             $quotation->tax_type = $request->tax_type;
             $quotation->tax_regime = $request->tax_regime;
+            
+            // Total fields - ALL must be proper decimals
             $quotation->subtotal = $subtotal;
             $quotation->total_discount = $totalDiscount;
+            $quotation->taxable_amount = $taxableAmount;
             $quotation->cgst = $totalCgst;
             $quotation->sgst = $totalSgst;
             $quotation->igst = $totalIgst;
+            $quotation->total_tax = $totalTax;
             $quotation->grand_total = $grandTotal;
             $quotation->total_items = $totalItems;
             $quotation->total_quantity = $totalQuantity;
-            $quotation->description = $request->description;
-            $quotation->updated_by = Auth::id();
+            $quotation->round_off = $roundOff;
+            $quotation->other_charges_total = $otherChargesTotal;
             
+            // Store other charges as JSON
+            if (!empty($otherCharges)) {
+                $quotation->other_charges = json_encode($otherCharges);
+            } else {
+                $quotation->other_charges = null;
+            }
+            
+            $quotation->description = $request->description;
+  
             \Log::info('Updating quotation with data:', $quotation->toArray());
             
             if (!$quotation->save()) {
@@ -875,10 +1105,10 @@ public function update(Request $request, $id)
             
             \Log::info('Quotation updated with ID: ' . $quotation->id);
             
-            // Delete existing items and save new ones
+            // Delete existing items
             QuotationItem::where('quotation_id', $quotation->id)->delete();
             
-            // Save items and update Item model if needed
+            // Save items and update Item model if requested
             foreach($request->items as $index => $itemData) {
                 if(!empty($itemData['item_id'])) {
                     \Log::info("Saving item {$index}: ", $itemData);
@@ -888,19 +1118,37 @@ public function update(Request $request, $id)
                         $this->updateItemDetails($itemData);
                     }
                     
+                    // Get item name from Items table
+                    $item = Items::find($itemData['item_id']);
+                    $itemName = $item ? $item->name : 'Item ' . $itemData['item_id'];
+                    
                     $quotationItem = new QuotationItem();
                     $quotationItem->quotation_id = $quotation->id;
-                    $quotationItem->item_name = $itemData['item_id'];
+                    $quotationItem->item_id = $itemData['item_id']; // Store item ID
+                    $quotationItem->item_name = $itemName;
                     $quotationItem->description = $itemData['description'] ?? '';
+                    
+                    // Store HSN and SKU
                     $quotationItem->hsn_code = $itemData['hsn'] ?? '';
                     $quotationItem->sku = $itemData['sku'] ?? '';
-                    $quotationItem->quantity = $itemData['quantity'] ?? 0;
-                    $quotationItem->unit_price = $itemData['unit_price'] ?? 0;
-                    $quotationItem->discount = $itemData['discount'] ?? 0;
-                    $quotationItem->discount_type = $itemData['discount_type'] ?? 'percentage';
+                    
+                    $quotationItem->quantity = (float)($itemData['quantity'] ?? 0);
+                    $quotationItem->unit_price = (float)($itemData['unit_price'] ?? 0);
+                    $quotationItem->discount = (float)($itemData['discount'] ?? 0);
+                    
+                    // Fix: Convert 'percentage' to 'percent' if needed
+                    $discountType = $itemData['discount_type'] ?? 'percentage';
+                    if ($discountType === 'percentage') {
+                        $quotationItem->discount_type = 'percent';
+                    } else {
+                        $quotationItem->discount_type = $discountType;
+                    }
+                    
+                    // Store tax percentage
+                    $taxPercentage = (float)($itemData['tax_percentage'] ?? 18);
+                    $quotationItem->tax_percentage = $taxPercentage;
                     
                     // Calculate tax rates
-                    $taxPercentage = $itemData['tax_percentage'] ?? 18;
                     if($gstType === 'cgst_sgst') {
                         $quotationItem->cgst_rate = $taxPercentage / 2;
                         $quotationItem->sgst_rate = $taxPercentage / 2;
@@ -912,9 +1160,9 @@ public function update(Request $request, $id)
                     }
                     
                     // Calculate total
-                    $quantity = $itemData['quantity'] ?? 0;
-                    $unitPrice = $itemData['unit_price'] ?? 0;
-                    $discount = $itemData['discount'] ?? 0;
+                    $quantity = (float)($itemData['quantity'] ?? 0);
+                    $unitPrice = (float)($itemData['unit_price'] ?? 0);
+                    $discount = (float)($itemData['discount'] ?? 0);
                     $discountType = $itemData['discount_type'] ?? 'percentage';
                     
                     $itemSubtotal = $quantity * $unitPrice;
@@ -931,13 +1179,19 @@ public function update(Request $request, $id)
                     $totalAmount = $taxableAmount + $taxAmount;
                     
                     $quotationItem->total_amount = $totalAmount;
+                    $quotationItem->tax_amount = $taxAmount;
+                    
+                    // Store additional calculated fields
+                    $quotationItem->subtotal = $itemSubtotal;
+                    $quotationItem->discount_amount = $discountAmount;
+                    $quotationItem->taxable_amount = $taxableAmount;
                     
                     if (!$quotationItem->save()) {
                         \Log::error('Failed to save quotation item:', $itemData);
-                        throw new \Exception('Failed to save quotation item: ' . $itemData['item_id']);
+                        throw new \Exception('Failed to save quotation item: ' . $itemName);
                     }
                     
-                    \Log::info("Item {$index} saved successfully");
+                    \Log::info("Item {$index} saved successfully with ID: " . $quotationItem->id);
                 }
             }
             
@@ -951,6 +1205,15 @@ public function update(Request $request, $id)
             \Log::error('Quotation Update Error: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
             
+            // Log the actual error details
+            if (strpos($e->getMessage(), 'Unable to cast value') !== false) {
+                \Log::error('Decimal casting error. Check these values:');
+                \Log::error('taxable_amount: ' . ($request->taxable_amount ?? 'null'));
+                \Log::error('total_tax: ' . ($request->total_tax ?? 'null'));
+                \Log::error('other_charges_total: ' . ($request->other_charges_total ?? 'null'));
+                \Log::error('round_off: ' . ($request->round_off ?? 'null'));
+            }
+            
             return redirect()->back()
                 ->with('error', __('Error updating quotation: ') . $e->getMessage())
                 ->withInput();
@@ -958,8 +1221,7 @@ public function update(Request $request, $id)
     }
     
     return redirect()->back()->with('error', __('Permission denied.'));
-}
-/**
+}/**
  * Get item details via AJAX
  */
 public function getItemDetails(Request $request)
@@ -1024,22 +1286,39 @@ public function getItemDetails(Request $request)
         return redirect()->back()->with('error', __('Permission denied.'));
     }
                   
-    public function print($id)
+  // In QuotationController.php
+public function print($id)
+{
+    if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')
     {
-        if(\Auth::user()->type == 'company' || \Auth::user()->type == 'super admin')
-        {
-            $quotation = Quotation::with('items')->findOrFail($id);
-            
-            // Check if quotation belongs to current company
-            if($quotation->company_id != Auth::user()->creatorId()) {
-                return redirect()->back()->with('error', __('Permission denied.'));
-            }
-            
-            return view('quotation.print', compact('quotation'));
+        $quotation = Quotation::with(['items', 'salesman', 'customer'])->findOrFail($id);
+        
+        // Check if quotation belongs to current company
+        if($quotation->company_id != Auth::user()->creatorId()) {
+            return redirect()->back()->with('error', __('Permission denied.'));
         }
         
-        return redirect()->back()->with('error', __('Permission denied.'));
+        // Format amount in words
+        $amountInWords = $this->numberToWords($quotation->grand_total);
+        
+        // Pass company info from authenticated user
+        $company_info = [
+            'company_name' => \Auth::user()->company_name ?? 'Company Name',
+            'company_address' => \Auth::user()->company_address ?? 'Company Address',
+            'company_city' => \Auth::user()->company_city ?? 'City',
+            'company_state' => \Auth::user()->company_state ?? 'State',
+            'company_zip_code' => \Auth::user()->company_zip_code ?? 'ZIP Code',
+            'company_email' => \Auth::user()->company_email ?? 'Email',
+            'company_phone' => \Auth::user()->company_phone ?? 'Phone',
+            'company_gstin' => \Auth::user()->company_gstin ?? 'GST Number',
+            'company_logo' => \Auth::user()->company_logo ?? null,
+        ];
+        
+        return view('quotation.print', compact('quotation', 'amountInWords') + $company_info);
     }
+    
+    return redirect()->back()->with('error', __('Permission denied.'));
+}
     
     /**
      * Convert quotation to invoice

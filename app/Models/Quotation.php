@@ -22,15 +22,20 @@ class Quotation extends Model
         'customer_name',
         'customer_email',
         'customer_mobile',
+        'tax_type',
+        'tax_regime',
         'contact_person',
         'salesman_id',
         'gst_type',
         'subtotal',
+        'taxable_amount',
         'other_charges',
+        'other_charges_total',
         'total_discount',
         'cgst',
         'sgst',
         'igst',
+        'total_tax',
         'round_off',
         'grand_total',
         'total_items',
@@ -39,21 +44,26 @@ class Quotation extends Model
         'customer_message',
         'send_email',
         'company_id',
-        'created_by'
+        'created_by',
+        'enquiry_id'
     ];
 
     protected $casts = [
-        'subtotal' => 'decimal:2',
-        'other_charges' => 'decimal:2',
+         'subtotal' => 'decimal:2',
+        'taxable_amount' => 'decimal:2',
+        'other_charges_total' => 'decimal:2',
         'total_discount' => 'decimal:2',
         'cgst' => 'decimal:2',
         'sgst' => 'decimal:2',
         'igst' => 'decimal:2',
+        'total_tax' => 'decimal:2',
         'round_off' => 'decimal:2',
         'grand_total' => 'decimal:2',
         'total_quantity' => 'decimal:2',
-        'send_email' => 'boolean'
-    ];
+        'other_charges' => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        ];
 
     // Relationships
     public function items()
