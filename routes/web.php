@@ -1861,7 +1861,8 @@ Route::get('quotations', [QuotationController::class, 'index'])->name('quotation
 Route::get('quotation/{quotation}/send', [QuotationController::class, 'sendQuotation'])->name('quotation.send');
 Route::post('quotation/get-gst-type', [QuotationController::class, 'getGstType'])->name('quotation.get-gst-type'); 
    Route::post('/get-customer-details', [QuotationController::class, 'getCustomerDetails'])->name('quotation.get-customer-details');
- // Add these routes to your web.php file
+ 
+   // Add these routes to your web.php file
 Route::get('quotation/{id}/print', [QuotationController::class, 'print'])->name('quotation.print');
 Route::get('quotation/{id}/pdf', [QuotationController::class, 'pdf'])->name('quotation.pdf');
 Route::get('quotation/{id}/convert-to-invoice', [QuotationController::class, 'convertToInvoice'])->name('quotation.convertToInvoice');

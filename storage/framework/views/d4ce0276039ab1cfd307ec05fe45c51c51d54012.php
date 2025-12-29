@@ -913,6 +913,62 @@ unset($__errorArgs, $__bag); ?>
 <?php $__env->startPush('scripts'); ?>
 
 <script>
+
+    // Auto-suggest variant names
+$(document).on('focus', 'input[name*="[name]"]', function() {
+    const input = $(this);
+    const container = input.closest('td');
+    
+    // Remove existing datalist if exists
+    container.find('datalist').remove();
+    
+    // Create datalist for suggestions
+    const datalistId = 'variant-suggestions-' + Date.now();
+    const datalist = $('<datalist id="' + datalistId + '"></datalist>');
+    
+    // Add loading option
+    datalist.append('<option value="Loading...">Loading...</option>');
+    
+    // Append datalist
+    container.append(datalist);
+    
+    // Set list attribute
+    input.attr('list', datalistId);
+    
+    // Fetch variant names
+    $.ajax({
+        url: '<?php echo e(route("item.variant.names")); ?>',
+        type: 'GET',
+        data: {
+            search: input.val() || ''
+        },
+        success: function(data) {
+            datalist.empty();
+            
+            if (data.length > 0) {
+                $.each(data, function(index, variantName) {
+                    datalist.append('<option value="' + variantName + '">' + variantName + '</option>');
+                });
+            } else {
+                datalist.append('<option value="No suggestions found">No suggestions found</option>');
+            }
+        },
+        error: function() {
+            datalist.empty();
+            datalist.append('<option value="Error loading suggestions">Error loading suggestions</option>');
+        }
+    });
+});
+
+// Clear datalist when input loses focus
+$(document).on('blur', 'input[name*="[name]"]', function() {
+    // We don't remove immediately to allow selection
+    setTimeout(() => {
+        const container = $(this).closest('td');
+        container.find('datalist').remove();
+        $(this).removeAttr('list');
+    }, 300);
+});
     let calculationResults = {
         purchasePrice: 0,
         salesPrice: 0,
