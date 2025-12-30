@@ -11,6 +11,16 @@
 @endsection
 
 @section('content')
+ @php
+        // Prepare tax data for JavaScript
+        $taxesArray = $taxes->map(function($tax) {
+            return [
+                'id' => $tax->id,
+                'rate' => $tax->rate,
+                'name' => $tax->name,
+            ];
+        })->toArray();
+    @endphp
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -37,28 +47,19 @@
                                     @enderror
                                 </div>
                             </div>
-                            
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="item_group" class="form-label"><strong>{{ __('Item Group*') }}</strong></label>
-                                    <select class="form-control select2" id="item_group" name="item_group" required>
-                                        <option value="">{{ __('-Select-') }}</option>
-                                        <option value="single" {{ old('item_group') == 'single' ? 'selected' : 'selected' }}>{{ __('Single') }}</option>
-                                        <option value="variants" {{ old('item_group') == 'variants' ? 'selected' : '' }}>{{ __('Variants') }}</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Second Row: Identification - Hidden when Variants selected -->
-                        <div id="identificationSection" class="row mb-4">
-                            <div class="col-md-4">
+                              <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="hsn" class="form-label"><strong>{{ __('HSN') }}</strong></label>
                                     <input type="text" class="form-control" id="hsn" name="hsn" 
                                            placeholder="Enter HSN code" value="{{ old('hsn') }}">
                                 </div>
                             </div>
+                            
+                        </div>
+
+                        <!-- Second Row: Identification - Hidden when Variants selected -->
+                        <div id="identificationSection" class="row mb-4">
+                          
                             
                             <div class="col-md-4">
                                 <div class="form-group">
@@ -81,54 +82,7 @@
                         </div>
 
                 
-<!-- Variants Section - Only shown when Variants selected -->
-<div id="variantsSection" class="row mb-4" style="display: none;">
-    <div class="col-md-12">
-        <h6 class="mb-3" style="color: #ef4444; font-weight: 600; border-bottom: 2px solid #ef4444; padding-bottom: 8px;">
-            <i class="fas fa-list"></i> {{ __('Variant Management') }}
-        </h6>
-        <div class="card">
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">{{ __('Variants List') }}</h6>
-                    <button type="button" class="btn btn-sm btn-primary" onclick="addVariantRow()">
-                        <i class="fas fa-plus me-1"></i> {{ __('Add Variant') }}
-                    </button>
-                </div>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-bordered mb-0 align-middle" id="variantsTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="text-nowrap">{{ __('Variant Name') }} *</th>
-                                <th class="text-nowrap">{{ __('HSN') }}</th>
-                                <th class="text-nowrap">{{ __('SKU') }}</th>
-                                <th class="text-nowrap">{{ __('Barcode') }}</th>
-                                <th class="text-nowrap">{{ __('Price') }}</th>
-                                <th class="text-nowrap">{{ __('Purchase Price') }}</th>
-                                <th class="text-nowrap">{{ __('Profit Margin') }}</th>
-                                <th class="text-nowrap">{{ __('Sales Price') }}</th>
-                                <th class="text-nowrap">{{ __('MRP') }}</th>
-                                <th class="text-nowrap">{{ __('Opening Stock') }}</th>
-                                <th class="text-nowrap text-center">{{ __('Action') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody id="variantsTableBody">
-                            <!-- Variant rows will be added here dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-                <div class="card-footer bg-light text-center py-2">
-                    <small class="text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        {{ __('For variants, HSN, SKU, and Barcode can be specified at variant level.') }}
-                    </small>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 
                         <!-- Third Row: Category & Brand -->
                         <div class="row mb-4">
@@ -254,18 +208,7 @@
                                 </div>
                             </div>
                             
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="mrp" class="form-label"><strong>{{ __('MRP') }}</strong></label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control text-end" id="mrp" 
-                                               name="mrp" min="0" step="0.01" placeholder="0.00" 
-                                               value="{{ old('mrp', 0) }}">
-                                    </div>
-                                    <small class="form-text text-muted">{{ __('Maximum Retail Price') }}</small>
-                                </div>
-                            </div>
+                          
                             
                             <div class="col-md-4">
                                 <div class="form-group">
@@ -275,10 +218,10 @@
                                            value="{{ old('seller_points', 0) }}">
                                 </div>
                             </div>
-                        </div>
+                        
 
                         <!-- Seventh Row: Discount -->
-                        <div class="row mb-4">
+                       
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="discount_type" class="form-label"><strong>{{ __('Discount Type') }}</strong></label>
@@ -292,7 +235,8 @@
                                     </select>
                                 </div>
                             </div>
-                            
+</div>
+                         <div class="row mb-4">    
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="discount" class="form-label"><strong>{{ __('Discount') }}</strong></label>
@@ -302,54 +246,51 @@
                                 </div>
                             </div>
                             
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="tax_type" class="form-label"><strong>{{ __('Tax Type*') }}</strong></label>
-                                    <select class="form-control select2" id="tax_type" name="tax_type" required>
-                                        <option value="">{{ __('-Select-') }}</option>
-                                        <option value="inclusive" {{ old('tax_type') == 'inclusive' ? 'selected' : 'selected' }}>
-                                            {{ __('Inclusive') }}
-                                        </option>
-                                        <option value="exclusive" {{ old('tax_type') == 'exclusive' ? 'selected' : '' }}>
-                                            {{ __('Exclusive') }}
-                                        </option>
-                                    </select>
-                                </div>
-                            </div>
+                        <div class="col-md-4">
+    <div class="form-group">
+        <label for="tax_percentage_select" class="form-label"><strong>{{ __('Tax %') }}</strong></label>
+        <div class="input-group">
+            <select class="form-control select2" id="tax_percentage_select" name="tax_percentage_select">
+                <option value="">{{ __('-Select-') }}</option>
+                <!-- Show only "Add New" option initially -->
+                <option value="add_new">{{ __('+ Add New Tax %') }}</option>
+            </select>
+           
+        </div>
+        
+        <!-- New Tax Input Section - Initially hidden -->
+        <div id="newTaxSection" style="display: none; margin-top: 10px;">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="input-group">
+                        <input type="number" class="form-control text-end" id="new_tax_percentage" 
+                               placeholder="Enter tax percentage" min="0" max="100" step="0.01">
+                        <span class="input-group-text">%</span>
+                        <span class="input-group-text" id="addTaxBtn" style="cursor: pointer; background-color: #28a745; color: white;">
+                            <i class="fas fa-plus"></i> Add
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <small class="text-muted mt-1 d-block">
+                {{ __('Enter tax percentage and click Add') }}
+            </small>
+        </div>
+        
+        <!-- Hidden inputs for form submission -->
+        <input type="hidden" name="tax_percentage" id="selected_tax_percentage" value="{{ old('tax_percentage', 0) }}">
+        <input type="hidden" name="tax_name" id="selected_tax_name" value="{{ old('tax_name', '') }}">
+        <input type="hidden" name="tax_id" id="selected_tax_id" value="{{ old('tax_id', '') }}">
+    </div>
+</div>
+                            
+                            
                         </div>
+                           
+                        
 
                         <!-- Eighth Row: Tax Information -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="tax_id" class="form-label"><strong>{{ __('Tax') }}</strong></label>
-                                    <select class="form-control select2" id="tax_id" name="tax_id">
-                                        <option value="">{{ __('-Select-') }}</option>
-                                        @foreach($taxes as $tax)
-                                            @php
-                                                $taxName = $tax->name;
-                                                $taxRate = $tax->rate;
-                                                if (strpos($taxName, 'TAX@') !== false) {
-                                                    $displayText = $taxName;
-                                                } else {
-                                                    $displayText = $taxName . ' (' . $taxRate . '%)';
-                                                }
-                                            @endphp
-                                            <option value="{{ $tax->id }}" {{ old('tax_id') == $tax->id ? 'selected' : '' }}
-                                                    data-rate="{{ $taxRate }}">
-                                                {{ $displayText }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-8">
-                                <div class="alert alert-info" style="margin-top: 28px;">
-                                    <small><i class="fas fa-info-circle"></i> {{ __('Tax will be applied to calculate purchase price') }}</small>
-                                </div>
-                            </div>
-                        </div>
+                       
 
                         <!-- Ninth Row: Purchase Price Calculation -->
                         <div class="row mb-4">
@@ -380,9 +321,18 @@
                             </div>
                             
                             <div class="col-md-8">
-                                <div class="alert alert-light" style="margin-top: 28px;">
-                                    <small><i class="fas fa-lightbulb"></i> {{ __('Purchase Price = Price + Tax Amount. Click "Auto Calculate" to compute based on selected tax.') }}</small>
+                               <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="profit_margin" class="form-label"><strong>{{ __('Profit Margin(%)') }}</strong></label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control text-end" id="profit_margin" 
+                                               name="profit_margin" min="0" step="0.01" placeholder="0.00" 
+                                               value="{{ old('profit_margin', 0) }}">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="form-text text-muted">{{ __('Auto-calculated') }}</small>
                                 </div>
+                            </div>
                             </div>
                         </div>
 
@@ -414,23 +364,10 @@
                                 </div>
                             </div>
                             
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="profit_margin" class="form-label"><strong>{{ __('Profit Margin(%)') }}</strong></label>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control text-end" id="profit_margin" 
-                                               name="profit_margin" min="0" step="0.01" placeholder="0.00" 
-                                               value="{{ old('profit_margin', 0) }}">
-                                        <span class="input-group-text">%</span>
-                                    </div>
-                                    <small class="form-text text-muted">{{ __('Auto-calculated') }}</small>
-                                </div>
-                            </div>
+                            
                             
                             <div class="col-md-4">
-                                <div class="alert alert-light" style="margin-top: 28px;">
-                                    <small><i class="fas fa-lightbulb"></i> {{ __('Profit Margin = ((Sales Price - Purchase Price) / Purchase Price) × 100') }}</small>
-                                </div>
+                              
                             </div>
                         </div>
 
@@ -873,7 +810,6 @@
 @endpush
 
 @push('scripts')
-
 <script>
     let calculationResults = {
         purchasePrice: 0,
@@ -884,14 +820,88 @@
     };
     
     let variantCounter = 0;
+    let customTaxPercentages = []; // Store custom tax percentages with TAX@ prefix
+    
+    // Pass existing taxes from Laravel to JavaScript
+    const existingTaxes = @json($taxes ?? []);
     
     $(document).ready(function() {
-        // Initialize all Select2 dropdowns
-        $('.select2').select2({
+        // Load existing tax percentages from database
+        loadExistingTaxPercentages(existingTaxes);
+        
+        // Initialize tax percentage Select2 dropdown
+        $('#tax_percentage_select').select2({
+            width: '100%',
+            placeholder: 'Select tax % or add new...',
+            allowClear: false,
+            dropdownParent: $('#itemForm'),
+            minimumResultsForSearch: Infinity
+        });
+        
+        // Initialize other Select2 dropdowns
+        $('#brand, #unit, #category, #company_id, #discount_type').select2({
             width: '100%',
             placeholder: 'Select...',
             allowClear: true,
             dropdownParent: $('#itemForm')
+        });
+        
+        // Handle tax percentage dropdown change
+        $('#tax_percentage_select').on('change', function() {
+            const selectedValue = $(this).val();
+            const selectedOption = $(this).find('option:selected');
+    
+            
+            if (selectedValue === 'add_new') {
+                // Show new tax input section
+                $('#newTaxSection').show();
+                $('#new_tax_percentage').focus();
+                
+                // Clear selected tax fields
+                $('#selected_tax_percentage').val('');
+                $('#selected_tax_name').val('');
+                $('#selected_tax_id').val('');
+                $('#tax_percentage').val(''); // Clear modal tax percentage
+            } else if (selectedValue) {
+                // Hide new tax input section
+                $('#newTaxSection').hide();
+                
+                // Store selected tax percentage
+                const taxPercent = parseFloat(selectedValue) || 0;
+                $('#selected_tax_percentage').val(taxPercent);
+                
+
+                const taxId = selectedOption.data('tax-id') || '';
+        const taxName = selectedOption.data('tax-name') || ('TAX@' + taxPercent + '%');
+        
+
+
+                $('#selected_tax_name').val(taxName);
+        $('#selected_tax_id').val(taxId);
+        
+        $('#tax_percentage').val(taxPercent); // Update modal tax percentage
+        
+        // Clear new tax input field
+        $('#new_tax_percentage').val('');
+        
+        // Trigger calculation
+        if ($('#price').val() > 0) {
+            calculatePurchasePriceFromPrice();
+        }
+            }
+        });
+        
+        // Add new tax percentage when "Add" button is clicked
+        $('#addTaxBtn').on('click', function() {
+            addNewTaxPercentage();
+        });
+        
+        // Also allow Enter key to add tax percentage
+        $('#new_tax_percentage').on('keypress', function(e) {
+            if (e.which === 13) { // Enter key
+                addNewTaxPercentage();
+                return false;
+            }
         });
         
         // Handle other options for brand, unit, category
@@ -931,7 +941,7 @@
         });
         
         // Auto-calculate purchase price from price and tax
-        $('#price, #tax_id').on('keyup change', function() {
+        $('#price, #tax_percentage_select, #selected_tax_percentage').on('keyup change', function() {
             calculatePurchasePriceFromPrice();
         });
         
@@ -940,13 +950,6 @@
         calculateProfitMargin();
         calculateDiscountedPrice();
         calculatePurchasePriceFromPrice();
-        
-        // Set tax percentage from selected tax
-        $('#tax_id').on('change', function() {
-            const selectedOption = $(this).find('option:selected');
-            const taxRate = selectedOption.data('rate') || 18;
-            $('#tax_percentage').val(taxRate);
-        });
         
         // When profit margin changes, update sales price
         $('#profit_margin').on('keyup change', function() {
@@ -959,6 +962,190 @@
         toggleIdentificationSection();
         togglePriceFields();
     });
+    
+    // Function to load existing tax percentages from database
+    function loadExistingTaxPercentages(taxes) {
+        // Clear customTaxPercentages array
+        customTaxPercentages = [];
+        
+        // Add existing taxes from database
+        if (taxes && taxes.length > 0) {
+            taxes.forEach(function(tax) {
+                // Check if tax name already has TAX@ prefix
+                let displayName = tax.name;
+                if (!displayName.includes('TAX@')) {
+                    displayName = 'TAX@' + tax.rate + '%';
+                }
+                
+                customTaxPercentages.push({
+                    id: tax.id,
+                    percentage: parseFloat(tax.rate),
+                    name: tax.name,
+                    display: displayName,
+                    value: tax.rate.toString()
+                });
+            });
+        }
+        
+        // Sort array by percentage
+        customTaxPercentages.sort((a, b) => a.percentage - b.percentage);
+        
+        // Rebuild dropdown with existing taxes
+        rebuildTaxDropdown();
+        
+        // Set old value if exists (for form validation errors)
+        const oldTaxPercentage = parseFloat('{{ old("tax_percentage", 0) }}') || 0;
+        const oldTaxName = '{{ old("tax_name", "") }}';
+        const oldTaxId = '{{ old("tax_id", "") }}';
+        
+        if (oldTaxPercentage > 0 && oldTaxName) {
+            // Check if this tax already exists in our array
+            let existingTax = customTaxPercentages.find(tax => 
+                tax.percentage == oldTaxPercentage || tax.name == oldTaxName
+            );
+            
+            if (!existingTax) {
+                // Add the old tax to our array
+                const displayName = oldTaxName.includes('TAX@') ? oldTaxName : 'TAX@' + oldTaxPercentage + '%';
+                customTaxPercentages.push({
+                    id: oldTaxId || 'temp_' + Date.now(),
+                    percentage: oldTaxPercentage,
+                    name: oldTaxName,
+                    display: displayName,
+                    value: oldTaxPercentage.toString()
+                });
+                
+                // Sort and rebuild
+                customTaxPercentages.sort((a, b) => a.percentage - b.percentage);
+                rebuildTaxDropdown();
+                
+                existingTax = customTaxPercentages.find(tax => tax.percentage == oldTaxPercentage);
+            }
+            
+            if (existingTax) {
+                // Select the old value
+                $('#tax_percentage_select').val(existingTax.value).trigger('change');
+                $('#selected_tax_percentage').val(oldTaxPercentage);
+                $('#selected_tax_name').val(oldTaxName);
+                $('#selected_tax_id').val(oldTaxId || existingTax.id);
+            }
+        }
+    }
+    
+    // Function to add new tax percentage
+    function addNewTaxPercentage() {
+        let taxPercent = parseFloat($('#new_tax_percentage').val()) || 0;
+        
+        // Round to 2 decimal places
+        taxPercent = parseFloat(taxPercent.toFixed(2));
+        
+        if (taxPercent < 0 || taxPercent > 100 || isNaN(taxPercent)) {
+            alert('Please enter a valid tax percentage between 0 and 100');
+            $('#new_tax_percentage').focus();
+            return;
+        }
+        
+        // Generate tax name with TAX@ prefix
+        const taxName = 'TAX@' + taxPercent + '%';
+        const displayText = taxName;
+        const tempId = 'temp_' + Date.now();
+        const value = taxPercent.toString();
+        
+        // Check if this percentage already exists
+        const existingTax = customTaxPercentages.find(tax => tax.percentage === taxPercent);
+        if (existingTax) {
+            // Select existing percentage
+            $('#tax_percentage_select').val(existingTax.value).trigger('change');
+            $('#selected_tax_percentage').val(taxPercent);
+            $('#selected_tax_name').val(existingTax.name);
+            $('#selected_tax_id').val(existingTax.id || '');
+        } else {
+            // Add to custom percentages array with TAX@ prefix
+            customTaxPercentages.push({
+                id: tempId,
+                percentage: taxPercent,
+                name: taxName,
+                display: displayText,
+                value: value
+            });
+            
+            // Sort array by percentage
+            customTaxPercentages.sort((a, b) => a.percentage - b.percentage);
+            
+            // Rebuild dropdown options
+            rebuildTaxDropdown();
+            
+            // Select the new percentage
+            $('#tax_percentage_select').val(value).trigger('change');
+            $('#selected_tax_percentage').val(taxPercent);
+            $('#selected_tax_name').val(taxName);
+            $('#selected_tax_id').val(tempId);
+        }
+        
+        // Update tax percentage in calculation modal
+        $('#tax_percentage').val(taxPercent);
+        
+        // Clear input field
+        $('#new_tax_percentage').val('');
+        
+        // Hide new tax section
+        $('#newTaxSection').hide();
+        
+        // Trigger calculation
+        if ($('#price').val() > 0) {
+            calculatePurchasePriceFromPrice();
+        }
+    }
+    
+    // Rebuild tax dropdown with custom percentages
+    function rebuildTaxDropdown() {
+        // Clear existing options
+        $('#tax_percentage_select').empty();
+        
+        // Add default option
+        $('#tax_percentage_select').append(
+            $('<option>', {
+                value: '',
+                text: '-Select-'
+            })
+        );
+        
+        // Add custom tax percentages
+        customTaxPercentages.forEach(function(tax) {
+            $('#tax_percentage_select').append(
+                $('<option>', {
+                    value: tax.value,
+                    text: tax.display,
+                    'data-tax-id': tax.id,
+                    'data-tax-name': tax.name,
+                    'data-tax-percentage': tax.percentage
+                })
+            );
+        });
+        
+        // Always add "Add New" option at the end
+        $('#tax_percentage_select').append(
+            $('<option>', {
+                value: 'add_new',
+                text: '+ Add New Tax %'
+            })
+        );
+        
+        // Reinitialize Select2
+        $('#tax_percentage_select').select2({
+            width: '100%',
+            placeholder: 'Select tax % or add new...',
+            allowClear: false,
+            dropdownParent: $('#itemForm'),
+            minimumResultsForSearch: Infinity
+        });
+    }
+    
+    // Get selected tax rate from dropdown
+    function getSelectedTaxRate() {
+        const selectedValue = $('#selected_tax_percentage').val();
+        return parseFloat(selectedValue) || 0;
+    }
     
     // Toggle identification section (HSN, SKU, Barcode)
     function toggleIdentificationSection() {
@@ -1000,179 +1187,10 @@
         }
     }
     
-function addVariantRow() {
-    variantCounter++;
-    const rowId = 'variant_' + variantCounter;
-    
-    const rowHtml = `
-        <tr id="${rowId}" class="variant-row">
-            <td>
-                <input type="text" name="variants[${variantCounter}][name]" 
-                       class="form-control form-control-sm variant-input" placeholder="Variant Name" required>
-            </td>
-            <td>
-                <input type="text" name="variants[${variantCounter}][hsn]" 
-                       class="form-control form-control-sm variant-input" placeholder="Optional">
-            </td>
-            <td>
-                <input type="text" name="variants[${variantCounter}][sku]" 
-                       class="form-control form-control-sm variant-input" placeholder="Optional">
-            </td>
-            <td>
-                <input type="text" name="variants[${variantCounter}][barcode]" 
-                       class="form-control form-control-sm variant-input" placeholder="Optional">
-            </td>
-            <td>
-                <div class="currency-input-wrapper">
-                    <span class="currency-symbol">₹</span>
-                    <input type="number" name="variants[${variantCounter}][price]" 
-                           class="form-control form-control-sm variant-input currency-input" 
-                           placeholder="0.00" min="0" step="0.01" required
-                           onchange="calculateVariantPurchasePrice(${variantCounter})">
-                </div>
-            </td>
-            <td>
-                <div class="currency-input-wrapper">
-                    <span class="currency-symbol">₹</span>
-                    <input type="number" name="variants[${variantCounter}][purchase_price]" 
-                           class="form-control form-control-sm variant-input currency-input" 
-                           placeholder="0.00" min="0" step="0.01" required
-                           onchange="calculateVariantProfitMargin(${variantCounter})">
-                </div>
-            </td>
-            <td>
-                <div class="percentage-input-wrapper">
-                    <input type="number" name="variants[${variantCounter}][profit_margin]" 
-                           class="form-control form-control-sm variant-input percentage-input" 
-                           placeholder="0.00" min="0" step="0.01"
-                           onchange="calculateVariantSalesPrice(${variantCounter})">
-                    <span class="percentage-symbol">%</span>
-                </div>
-            </td>
-            <td>
-                <div class="currency-input-wrapper">
-                    <span class="currency-symbol">₹</span>
-                    <input type="number" name="variants[${variantCounter}][sales_price]" 
-                           class="form-control form-control-sm variant-input currency-input" 
-                           placeholder="0.00" min="0" step="0.01" required
-                           onchange="calculateVariantProfitMarginFromSales(${variantCounter})">
-                </div>
-            </td>
-            <td>
-                <div class="currency-input-wrapper">
-                    <span class="currency-symbol">₹</span>
-                    <input type="number" name="variants[${variantCounter}][mrp]" 
-                           class="form-control form-control-sm variant-input currency-input" 
-                           placeholder="0.00" min="0" step="0.01">
-                </div>
-            </td>
-            <td>
-                <input type="number" name="variants[${variantCounter}][opening_stock]" 
-                       class="form-control form-control-sm variant-input number-input" 
-                       placeholder="0" min="0" step="1" value="0">
-            </td>
-            <td class="text-center">
-                <button type="button" class="btn btn-sm btn-danger variant-delete-btn" onclick="removeVariantRow('${rowId}')" title="Remove">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        </tr>
-    `;
-    
-    $('#variantsTableBody').append(rowHtml);
-    
-    // Initialize calculations for the new row
-    calculateVariantPurchasePrice(variantCounter);
-}
-    
-    // Remove variant row
-    function removeVariantRow(rowId) {
-        $('#' + rowId).remove();
-    }
-    
-    // Calculate variant purchase price from price and tax
-    function calculateVariantPurchasePrice(variantId) {
-        const priceInput = $(`input[name="variants[${variantId}][price]"]`);
-        const purchasePriceInput = $(`input[name="variants[${variantId}][purchase_price]"]`);
-        const profitMarginInput = $(`input[name="variants[${variantId}][profit_margin]"]`);
-        const salesPriceInput = $(`input[name="variants[${variantId}][sales_price]"]`);
-        
-        const price = parseFloat(priceInput.val()) || 0;
+    // Sync tax rate from main form to calculation modal
+    function syncTaxRateToModal() {
         const taxRate = getSelectedTaxRate();
-        
-        if (price > 0) {
-            const taxAmount = price * (taxRate / 100);
-            const purchasePrice = price + taxAmount;
-            purchasePriceInput.val(purchasePrice.toFixed(2));
-            
-            // If sales price is set, recalculate profit margin
-            const salesPrice = parseFloat(salesPriceInput.val()) || 0;
-            if (salesPrice > 0) {
-                calculateVariantProfitMarginFromSales(variantId);
-            } else if (parseFloat(profitMarginInput.val()) > 0) {
-                // If profit margin is set, recalculate sales price
-                calculateVariantSalesPrice(variantId);
-            }
-        }
-    }
-    
-    // Calculate variant profit margin
-    function calculateVariantProfitMargin(variantId) {
-        const purchasePriceInput = $(`input[name="variants[${variantId}][purchase_price]"]`);
-        const salesPriceInput = $(`input[name="variants[${variantId}][sales_price]"]`);
-        const profitMarginInput = $(`input[name="variants[${variantId}][profit_margin]"]`);
-        
-        const purchasePrice = parseFloat(purchasePriceInput.val()) || 0;
-        const salesPrice = parseFloat(salesPriceInput.val()) || 0;
-        
-        if (purchasePrice > 0 && salesPrice > 0) {
-            const profitMargin = ((salesPrice - purchasePrice) / purchasePrice) * 100;
-            profitMarginInput.val(profitMargin.toFixed(2));
-        }
-    }
-    
-    // Calculate variant profit margin from sales price
-    function calculateVariantProfitMarginFromSales(variantId) {
-        const purchasePriceInput = $(`input[name="variants[${variantId}][purchase_price]"]`);
-        const salesPriceInput = $(`input[name="variants[${variantId}][sales_price]"]`);
-        const profitMarginInput = $(`input[name="variants[${variantId}][profit_margin]"]`);
-        
-        const purchasePrice = parseFloat(purchasePriceInput.val()) || 0;
-        const salesPrice = parseFloat(salesPriceInput.val()) || 0;
-        
-        if (purchasePrice > 0 && salesPrice > 0) {
-            const profitMargin = ((salesPrice - purchasePrice) / purchasePrice) * 100;
-            profitMarginInput.val(profitMargin.toFixed(2));
-        } else if (purchasePrice > 0 && parseFloat(profitMarginInput.val()) > 0) {
-            // If profit margin is set but sales price isn't, calculate sales price
-            calculateVariantSalesPrice(variantId);
-        }
-    }
-    
-    // Calculate variant sales price from purchase price and profit margin
-    function calculateVariantSalesPrice(variantId) {
-        const purchasePriceInput = $(`input[name="variants[${variantId}][purchase_price]"]`);
-        const profitMarginInput = $(`input[name="variants[${variantId}][profit_margin]"]`);
-        const salesPriceInput = $(`input[name="variants[${variantId}][sales_price]"]`);
-        
-        const purchasePrice = parseFloat(purchasePriceInput.val()) || 0;
-        const profitMargin = parseFloat(profitMarginInput.val()) || 0;
-        
-        if (purchasePrice > 0) {
-            const salesPrice = purchasePrice * (1 + (profitMargin / 100));
-            salesPriceInput.val(salesPrice.toFixed(2));
-        }
-    }
-    
-    // Calculate profit margin automatically
-    function calculateProfitMargin() {
-        const purchasePrice = parseFloat($('#purchase_price').val()) || 0;
-        const salesPrice = parseFloat($('#sales_price').val()) || 0;
-        
-        if (purchasePrice > 0 && salesPrice > 0) {
-            const profitMargin = ((salesPrice - purchasePrice) / purchasePrice) * 100;
-            $('#profit_margin').val(profitMargin.toFixed(2));
-        }
+        $('#tax_percentage').val(taxRate || 0);
     }
     
     // Open calculation modal for purchase price
@@ -1181,10 +1199,8 @@ function addVariantRow() {
         $('#calculationModalLabel').text('Calculate Purchase Price');
         $('#base_price').val($('#price').val() || 0);
         
-        // Get tax rate from selected option
-        const selectedTax = $('#tax_id').find('option:selected');
-        const taxRate = selectedTax.data('rate') || 18;
-        $('#tax_percentage').val(taxRate);
+        // Sync tax rate from main form to modal
+        syncTaxRateToModal();
         
         $('#margin_percentage').val($('#profit_margin').val() || 20);
         calculatePrice();
@@ -1197,19 +1213,11 @@ function addVariantRow() {
         $('#calculationModalLabel').text('Calculate Sales Price');
         $('#base_price').val($('#purchase_price').val() || 0);
         
-        // Get tax rate from selected option
-        const selectedTax = $('#tax_id').find('option:selected');
-        const taxRate = selectedTax.data('rate') || 18;
-        $('#tax_percentage').val(taxRate);
+        // Sync tax rate from main form to modal
+        syncTaxRateToModal();
         
         $('#margin_percentage').val($('#profit_margin').val() || 20);
         calculatePrice();
-    }
-    
-    // Get selected tax rate from dropdown
-    function getSelectedTaxRate() {
-        const selectedOption = $('#tax_id').find('option:selected');
-        return selectedOption.data('rate') || 18;
     }
     
     // Main calculation function
@@ -1296,6 +1304,32 @@ function addVariantRow() {
             $('#profit_margin').val(calculationResults.profitPercentage.toFixed(2));
         }
         
+        // Also update the tax percentage in custom tax if user changed it
+        const modalTaxRate = parseFloat($('#tax_percentage').val()) || 0;
+        
+        // Update tax rate if a custom tax is selected
+        const selectedTaxId = $('#selected_tax_id').val();
+        if (selectedTaxId && selectedTaxId.startsWith('temp_')) {
+            // Find and update the custom tax
+            const index = customTaxPercentages.findIndex(tax => tax.id === selectedTaxId);
+            if (index !== -1) {
+                customTaxPercentages[index].percentage = modalTaxRate;
+                customTaxPercentages[index].value = modalTaxRate.toString();
+                // Update the display text
+                const displayText = 'TAX@' + modalTaxRate + '%';
+                customTaxPercentages[index].display = displayText;
+                customTaxPercentages[index].name = displayText;
+                
+                // Sort and rebuild
+                customTaxPercentages.sort((a, b) => a.percentage - b.percentage);
+                rebuildTaxDropdown();
+                
+                // Update hidden fields
+                $('#selected_tax_percentage').val(modalTaxRate);
+                $('#selected_tax_name').val(displayText);
+            }
+        }
+        
         // Close modal
         bootstrap.Modal.getInstance(document.getElementById('calculationModal')).hide();
     }
@@ -1323,6 +1357,17 @@ function addVariantRow() {
             
             // Recalculate sales price if profit margin is set
             calculateSalesPriceFromPurchase();
+        }
+    }
+    
+    // Calculate profit margin
+    function calculateProfitMargin() {
+        const purchasePrice = parseFloat($('#purchase_price').val()) || 0;
+        const salesPrice = parseFloat($('#sales_price').val()) || 0;
+        
+        if (purchasePrice > 0 && salesPrice > 0) {
+            const profitMargin = ((salesPrice - purchasePrice) / purchasePrice) * 100;
+            $('#profit_margin').val(profitMargin.toFixed(2));
         }
     }
     
@@ -1409,69 +1454,31 @@ function addVariantRow() {
             isValid = false;
         }
         
-        if ($('#item_group').val() === '') {
-            alert('Please select an item group');
-            $('#item_group').focus();
+        // Tax validation
+        const taxPercentage = $('#selected_tax_percentage').val();
+        const taxName = $('#selected_tax_name').val();
+        
+        if (!taxPercentage || taxPercentage === '' || taxPercentage === '0') {
+            alert('Please select or add a tax percentage');
+            $('#tax_percentage_select').focus();
             isValid = false;
         }
         
-        const itemGroup = $('#item_group').val();
+        if (!taxName || taxName === '') {
+            alert('Please select or add a tax');
+            $('#tax_percentage_select').focus();
+            isValid = false;
+        }
         
-        if (itemGroup === 'variants') {
-            // Check if at least one variant is added
-            if ($('#variantsTableBody tr').length === 0) {
-                alert('Please add at least one variant for variable items');
-                isValid = false;
-            }
-            
-            // Validate each variant
-            $('#variantsTableBody tr').each(function() {
-                const variantName = $(this).find('input[name*="[name]"]').val();
-                const price = $(this).find('input[name*="[price]"]').val();
-                const purchasePrice = $(this).find('input[name*="[purchase_price]"]').val();
-                const salesPrice = $(this).find('input[name*="[sales_price]"]').val();
-                
-                if (!variantName || variantName.trim() === '') {
-                    alert('Please enter variant name for all variants');
-                    $(this).find('input[name*="[name]"]').focus();
-                    isValid = false;
-                    return false;
-                }
-                
-                if (!price || parseFloat(price) < 0) {
-                    alert('Please enter valid price for all variants');
-                    $(this).find('input[name*="[price]"]').focus();
-                    isValid = false;
-                    return false;
-                }
-                
-                if (!purchasePrice || parseFloat(purchasePrice) < 0) {
-                    alert('Please enter valid purchase price for all variants');
-                    $(this).find('input[name*="[purchase_price]"]').focus();
-                    isValid = false;
-                    return false;
-                }
-                
-                if (!salesPrice || parseFloat(salesPrice) < 0) {
-                    alert('Please enter valid sales price for all variants');
-                    $(this).find('input[name*="[sales_price]"]').focus();
-                    isValid = false;
-                    return false;
-                }
-                
-                // Validate price relationships
-                const purchasePriceVal = parseFloat(purchasePrice);
-                const salesPriceVal = parseFloat(salesPrice);
-                
-                if (salesPriceVal < purchasePriceVal) {
-                    alert('Sales price should be greater than or equal to purchase price for all variants');
-                    $(this).find('input[name*="[sales_price]"]').focus();
-                    isValid = false;
-                    return false;
-                }
-            });
-        } else {
-            // Validate single item fields
+        // Company validation
+        if ($('#company_id').val() === '') {
+            alert('Please select a company');
+            $('#company_id').focus();
+            isValid = false;
+        }
+        
+        // Price validation for single items
+        if (!$('#item_group').val() || $('#item_group').val() !== 'variants') {
             if ($('#price').val() === '' || parseFloat($('#price').val()) < 0) {
                 alert('Please enter a valid price');
                 $('#price').focus();
@@ -1489,28 +1496,6 @@ function addVariantRow() {
                 $('#sales_price').focus();
                 isValid = false;
             }
-            
-            // Validate price relationships for single items
-            const purchasePrice = parseFloat($('#purchase_price').val()) || 0;
-            const salesPrice = parseFloat($('#sales_price').val()) || 0;
-            
-            if (salesPrice < purchasePrice) {
-                alert('Sales price should be greater than or equal to purchase price');
-                $('#sales_price').focus();
-                isValid = false;
-            }
-        }
-        
-        if ($('#tax_type').val() === '') {
-            alert('Please select a tax type');
-            $('#tax_type').focus();
-            isValid = false;
-        }
-        
-        if ($('#company_id').val() === '') {
-            alert('Please select a company');
-            $('#company_id').focus();
-            isValid = false;
         }
         
         // Check if "other" fields are filled when selected

@@ -7,8 +7,8 @@ use App\Models\Items;
 use App\Models\User;
 use App\Models\Branch;
 use App\Models\Tax;
-use App\Models\Brand; // Add Brand model
-use App\Models\Category; // Add Category model
+use App\Models\Brand; 
+use App\Models\Category; 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
@@ -48,6 +48,7 @@ class ItemController extends Controller
                 ->where('created_by', Auth::user()->creatorId())
                 ->get()
                 ->pluck('name', 'id');
+                
             
             // Get brands from Brand model (active only)
             $brands = Brand::where('created_by', Auth::user()->creatorId())
@@ -90,6 +91,7 @@ class ItemController extends Controller
             
             // Get tax rates from database
             $taxes = Tax::where('created_by', Auth::user()->creatorId())->get();
+           
             
             return view('items.create', compact('companies', 'brands', 'units', 'categories', 'taxes'));
         } else {
@@ -100,125 +102,170 @@ class ItemController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
-        if (\Auth::user()->can('item_add')) {
-            $validator = Validator::make(
-                $request->all(),
-                [
-                    'name' => 'required|string|max:255',
-                    'item_group' => 'required|in:single,variants',
-                    'hsn' => 'nullable|string|max:50',
-                    'barcode' => 'nullable|string|max:100|unique:items,barcode',
-                    'brand' => 'nullable|string|max:100',
-                    'other_brand' => 'nullable|string|max:100',
-                    'unit' => 'nullable|string|max:50',
-                    'other_unit' => 'nullable|string|max:50',
-                    'alert_quantity' => 'nullable|integer|min:0',
-                    'category' => 'nullable|string|max:100',
-                    'other_category' => 'nullable|string|max:100',
-                    'description' => 'nullable|string',
-                    'discount_type' => 'required|in:percentage,fixed',
-                    'discount' => 'nullable|numeric|min:0',
-                    'price' => 'required|numeric|min:0',
-                    'tax_type' => 'required|in:inclusive,exclusive',
-                    'mrp' => 'nullable|numeric|min:0',
-                    'company_id' => 'required|exists:users,id',
-                    'tax_id' => 'nullable|exists:taxes,id',
-                    'profit_margin' => 'nullable|numeric|min:0',
-                    'sku' => 'nullable|string|max:100|unique:items,sku',
-                    'seller_points' => 'nullable|integer|min:0',
-                    'purchase_price' => 'required|numeric|min:0',
-                    'sales_price' => 'required|numeric|min:0',
-                    'opening_stock' => 'nullable|integer|min:0',
-                    'item_image' => 'nullable|image|max:1024|mimes:jpeg,png,jpg,gif,webp',
-                    'additional_image' => 'nullable|image|max:1024|mimes:jpeg,png,jpg,gif,webp',
-                ],
-                [
-                    'price.min' => 'Price must be greater than or equal to 0.',
-                    'purchase_price.min' => 'Purchase price must be greater than or equal to 0.',
-                    'sales_price.min' => 'Sales price must be greater than or equal to 0.',
-                    'sku.unique' => 'This SKU already exists. Please use a different SKU.',
-                    'barcode.unique' => 'This barcode already exists. Please use a different barcode.',
-                ]
-            );
-
-            if ($validator->fails()) {
-                return redirect()->back()
-                    ->withErrors($validator)
-                    ->withInput();
+   public function store(Request $request)
+{
+    if (\Auth::user()->can('item_add')) {
+       
+        // Debug: Log all request data
+        \Log::info('Item Store Request Data:', $request->all());
+        \Log::info('Tax Name:', ['tax_name' => $request->tax_name]);
+        \Log::info('Tax Percentage:', ['tax_percentage' => $request->tax_percentage]);
+        \Log::info('Tax ID:', ['tax_id' => $request->tax_id]);
+        
+        // Handle tax first - check if it's a custom tax
+        $taxId = null;
+        $taxName = $request->tax_name;
+        $taxPercentage = $request->tax_percentage;
+        
+        // If custom tax was added
+        if ($taxName && $taxPercentage) {
+            // Ensure tax name has TAX@ prefix
+            if (!str_starts_with($taxName, 'TAX@')) {
+                $taxName = 'TAX@' . $taxPercentage . '%';
             }
-
-            // Handle "other" fields
-            $brand = $request->brand == 'other' ? $request->other_brand : $request->brand;
-            $unit = $request->unit == 'other' ? $request->other_unit : $request->unit;
-            $category = $request->category == 'other' ? $request->other_category : $request->category;
-
-            // Create new brand if "other" is selected and brand doesn't exist
-            if ($request->brand == 'other' && $request->other_brand) {
-                $newBrand = $this->createBrand($request->other_brand);
-                $brand = $newBrand->name;
+            
+            // Check if tax already exists for this company
+            $existingTax = Tax::where('name', $taxName)
+                           
+                             ->where('created_by', Auth::user()->creatorId())
+                             ->first();
+            
+            if ($existingTax) {
+                // Use existing tax
+                $taxId = $existingTax->id;
+            } else {
+                // Create new tax with TAX@ prefix
+                $tax = Tax::create([
+                    'name' => $taxName,
+                    'rate' => $taxPercentage,
+                  
+                    'created_by' => Auth::user()->creatorId(),
+                ]);
+                
+                $taxId = $tax->id;
             }
-
-            // Create new category if "other" is selected and category doesn't exist
-            if ($request->category == 'other' && $request->other_category) {
-                $newCategory = $this->createCategory($request->other_category);
-                $category = $newCategory->name;
-            }
-
-            // Calculate profit margin if not provided
-            $profit_margin = $request->profit_margin;
-            if (empty($profit_margin) && $request->purchase_price > 0) {
-                $profit_margin = (($request->sales_price - $request->purchase_price) / $request->purchase_price) * 100;
-            }
-
-            $item = new Items();
-            $item->name = $request->name;
-            $item->item_group = $request->item_group;
-            $item->hsn = $request->hsn;
-            $item->barcode = $request->barcode;
-            $item->brand = $brand;
-            $item->unit = $unit;
-            $item->alert_quantity = $request->alert_quantity ?? 0;
-            $item->category = $category;
-            $item->description = $request->description;
-            $item->discount_type = $request->discount_type;
-            $item->discount = $request->discount ?? 0;
-            $item->price = $request->price;
-            $item->tax_type = $request->tax_type;
-            $item->mrp = $request->mrp ?? $request->price;
-            $item->company_id = $request->company_id;
-            $item->tax_id = $request->tax_id;
-            $item->profit_margin = $profit_margin ?? 0;
-            $item->sku = $request->sku;
-            $item->seller_points = $request->seller_points ?? 0;
-            $item->purchase_price = $request->purchase_price;
-            $item->sales_price = $request->sales_price;
-            $item->opening_stock = $request->opening_stock ?? 0;
-            $item->quantity = $request->opening_stock ?? 0;
-            $item->created_by = Auth::user()->creatorId();
-
-            // Handle main image upload
-            if ($request->hasFile('item_image')) {
-                $imageName = time() . '_item.' . $request->item_image->extension();
-                $path = $request->item_image->storeAs('items', $imageName, 'public');
-                $item->image = $path;
-            }
-
-            // Handle additional image upload
-            if ($request->hasFile('additional_image')) {
-                $additionalImageName = time() . '_additional.' . $request->additional_image->extension();
-                $path = $request->additional_image->storeAs('items/additional', $additionalImageName, 'public');
-                $item->additional_image = $path;
-            }
-
-            $item->save();
-
-            return redirect()->route('items.index')->with('success', __('Item created successfully.'));
         } else {
-            return redirect()->back()->with('error', __('Permission denied.'));
+            // Use existing tax_id if provided
+            $taxId = $request->tax_id;
         }
+        
+        $validator = Validator::make(
+            $request->all(),
+            [
+                'name' => 'required|string|max:255',
+                'hsn' => 'nullable|string|max:50',
+                'barcode' => 'nullable|string|max:100|unique:items,barcode',
+                'brand' => 'nullable|string|max:100',
+                'other_brand' => 'nullable|string|max:100',
+                'unit' => 'nullable|string|max:50',
+                'company_id' => 'required|exists:users,id',
+                'other_unit' => 'nullable|string|max:50',
+                'alert_quantity' => 'nullable|integer|min:0',
+                'category' => 'nullable|string|max:100',
+                'other_category' => 'nullable|string|max:100',
+                'description' => 'nullable|string',
+                'discount_type' => 'required|in:percentage,fixed',
+                'discount' => 'nullable|numeric|min:0',
+                'price' => 'required|numeric|min:0',
+             
+                 'profit_margin' => 'nullable|numeric|min:0',
+                'sku' => 'nullable|string|max:100|unique:items,sku',
+                'seller_points' => 'nullable|integer|min:0',
+                'purchase_price' => 'required|numeric|min:0',
+                'sales_price' => 'required|numeric|min:0',
+                'opening_stock' => 'nullable|integer|min:0',
+                'item_image' => 'nullable|image|max:1024|mimes:jpeg,png,jpg,gif,webp',
+                'additional_image' => 'nullable|image|max:1024|mimes:jpeg,png,jpg,gif,webp',
+                // Custom tax validation
+                'tax_percentage' => 'required_with:tax_name|numeric|between:0,100',
+                'tax_name' => 'required_with:tax_percentage|string|max:50',
+            ],
+            [
+                'price.min' => 'Price must be greater than or equal to 0.',
+                'purchase_price.min' => 'Purchase price must be greater than or equal to 0.',
+                'sales_price.min' => 'Sales price must be greater than or equal to 0.',
+                'sku.unique' => 'This SKU already exists. Please use a different SKU.',
+                'barcode.unique' => 'This barcode already exists. Please use a different barcode.',
+                'tax_percentage.required_with' => 'Tax percentage is required when tax name is provided.',
+                'tax_name.required_with' => 'Tax name is required when tax percentage is provided.',
+            ]
+        );
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        // Handle "other" fields
+        $brand = $request->brand == 'other' ? $request->other_brand : $request->brand;
+        $unit = $request->unit == 'other' ? $request->other_unit : $request->unit;
+        $category = $request->category == 'other' ? $request->other_category : $request->category;
+
+        // Create new brand if "other" is selected and brand doesn't exist
+        if ($request->brand == 'other' && $request->other_brand) {
+            $newBrand = $this->createBrand($request->other_brand);
+            $brand = $newBrand->name;
+        }
+
+        // Create new category if "other" is selected and category doesn't exist
+        if ($request->category == 'other' && $request->other_category) {
+            $newCategory = $this->createCategory($request->other_category);
+            $category = $newCategory->name;
+        }
+
+        // Calculate profit margin if not provided
+        $profit_margin = $request->profit_margin;
+        if (empty($profit_margin) && $request->purchase_price > 0) {
+            $profit_margin = (($request->sales_price - $request->purchase_price) / $request->purchase_price) * 100;
+        }
+
+        $item = new Items();
+        $item->name = $request->name;
+        $item->item_group = "single";
+        $item->hsn = $request->hsn;
+        $item->barcode = $request->barcode;
+        $item->brand = $brand;
+        $item->unit = $unit;
+        $item->alert_quantity = $request->alert_quantity ?? 0;
+        $item->category = $category;
+        $item->description = $request->description;
+        $item->discount_type = $request->discount_type;
+        $item->discount = $request->discount ?? 0;
+        $item->price = $request->price;
+        $item->company_id = $request->company_id; 
+         
+        $item->tax_id = $taxId; // Use the tax ID we found/created
+        $item->profit_margin = $profit_margin ?? 0;
+        $item->sku = $request->sku;
+        $item->seller_points = $request->seller_points ?? 0;
+        $item->purchase_price = $request->purchase_price;
+        $item->sales_price = $request->sales_price;
+        $item->opening_stock = $request->opening_stock ?? 0;
+        $item->quantity = $request->opening_stock ?? 0;
+        $item->created_by = Auth::user()->creatorId();
+
+        // Handle main image upload
+        if ($request->hasFile('item_image')) {
+            $imageName = time() . '_item.' . $request->item_image->extension();
+            $path = $request->item_image->storeAs('items', $imageName, 'public');
+            $item->image = $path;
+        }
+
+        // Handle additional image upload
+        if ($request->hasFile('additional_image')) {
+            $additionalImageName = time() . '_additional.' . $request->additional_image->extension();
+            $path = $request->additional_image->storeAs('items/additional', $additionalImageName, 'public');
+            $item->additional_image = $path;
+        }
+
+        $item->save();
+
+        return redirect()->route('items.index')->with('success', __('Item created successfully.'));
+    } else {
+        return redirect()->back()->with('error', __('Permission denied.'));
     }
+}
 
     /**
      * Display the specified resource.
@@ -248,7 +295,8 @@ class ItemController extends Controller
     public function edit($id)
     {
         if (\Auth::user()->can('item_edit')) {
-            $item = Items::find($id);
+         
+             $item = Items::with('tax')->find($id);
             
             if (!$item) {
                 return redirect()->route('items.index')->with('error', __('Item not found.'));
@@ -304,6 +352,7 @@ class ItemController extends Controller
             asort($units);
             
             $taxes = Tax::where('created_by', Auth::user()->creatorId())->get();
+        
             
             return view('items.edit', compact('item', 'companies', 'brands', 'units', 'categories', 'taxes'));
         } else {
@@ -314,148 +363,187 @@ class ItemController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
-    {
-        if (\Auth::user()->can('item_edit')) {
-            $item = Items::find($id);
-            
-            if (!$item) {
-                return redirect()->route('items.index')->with('error', __('Item not found.'));
-            }
-            
-            if ($item->created_by != Auth::user()->creatorId()) {
-                return redirect()->back()->with('error', __('Permission denied.'));
-            }
-
-            $validator = Validator::make(
-                $request->all(),
-                [
-                    'name' => 'required|string|max:255',
-                    'item_group' => 'required|in:single,variants',
-                    'hsn' => 'nullable|string|max:50',
-                    'barcode' => 'nullable|string|max:100|unique:items,barcode,' . $id,
-                    'brand' => 'nullable|string|max:100',
-                    'other_brand' => 'nullable|string|max:100',
-                    'unit' => 'nullable|string|max:50',
-                    'other_unit' => 'nullable|string|max:50',
-                    'alert_quantity' => 'nullable|integer|min:0',
-                    'category' => 'nullable|string|max:100',
-                    'other_category' => 'nullable|string|max:100',
-                    'description' => 'nullable|string',
-                    'discount_type' => 'required|in:percentage,fixed',
-                    'discount' => 'nullable|numeric|min:0',
-                    'price' => 'required|numeric|min:0',
-                    'tax_type' => 'required|in:inclusive,exclusive',
-                    'mrp' => 'nullable|numeric|min:0',
-                    'company_id' => 'required|exists:users,id',
-                    'tax_id' => 'nullable|exists:taxes,id',
-                    'profit_margin' => 'nullable|numeric|min:0',
-                    'sku' => 'nullable|string|max:100|unique:items,sku,' . $id,
-                    'seller_points' => 'nullable|integer|min:0',
-                    'purchase_price' => 'required|numeric|min:0',
-                    'sales_price' => 'required|numeric|min:0',
-                    'opening_stock' => 'nullable|integer|min:0',
-                    'item_image' => 'nullable|image|max:1024|mimes:jpeg,png,jpg,gif,webp',
-                    'additional_image' => 'nullable|image|max:1024|mimes:jpeg,png,jpg,gif,webp',
-                ],
-                [
-                    'price.min' => 'Price must be greater than or equal to 0.',
-                    'purchase_price.min' => 'Purchase price must be greater than or equal to 0.',
-                    'sales_price.min' => 'Sales price must be greater than or equal to 0.',
-                    'sku.unique' => 'This SKU already exists. Please use a different SKU.',
-                    'barcode.unique' => 'This barcode already exists. Please use a different barcode.',
-                ]
-            );
-
-            if ($validator->fails()) {
-                return redirect()->back()
-                    ->withErrors($validator)
-                    ->withInput();
-            }
-
-            // Handle "other" fields
-            $brand = $request->brand == 'other' ? $request->other_brand : $request->brand;
-            $unit = $request->unit == 'other' ? $request->other_unit : $request->unit;
-            $category = $request->category == 'other' ? $request->other_category : $request->category;
-
-            // Create new brand if "other" is selected and brand doesn't exist
-            if ($request->brand == 'other' && $request->other_brand) {
-                $newBrand = $this->createBrand($request->other_brand);
-                $brand = $newBrand->name;
-            }
-
-            // Create new category if "other" is selected and category doesn't exist
-            if ($request->category == 'other' && $request->other_category) {
-                $newCategory = $this->createCategory($request->other_category);
-                $category = $newCategory->name;
-            }
-
-            // Calculate profit margin if not provided
-            $profit_margin = $request->profit_margin;
-            if (empty($profit_margin) && $request->purchase_price > 0) {
-                $profit_margin = (($request->sales_price - $request->purchase_price) / $request->purchase_price) * 100;
-            }
-
-            $item->name = $request->name;
-            $item->item_group = $request->item_group;
-            $item->hsn = $request->hsn;
-            $item->barcode = $request->barcode;
-            $item->brand = $brand;
-            $item->unit = $unit;
-            $item->alert_quantity = $request->alert_quantity ?? 0;
-            $item->category = $category;
-            $item->description = $request->description;
-            $item->discount_type = $request->discount_type;
-            $item->discount = $request->discount ?? 0;
-            $item->price = $request->price;
-            $item->tax_type = $request->tax_type;
-            $item->mrp = $request->mrp ?? $request->price;
-            $item->company_id = $request->company_id;
-            $item->tax_id = $request->tax_id;
-            $item->profit_margin = $profit_margin ?? 0;
-            $item->sku = $request->sku;
-            $item->seller_points = $request->seller_points ?? 0;
-            $item->purchase_price = $request->purchase_price;
-            $item->sales_price = $request->sales_price;
-            
-            // Update stock if opening stock changed
-            if ($request->opening_stock != $item->opening_stock) {
-                $stockDifference = $request->opening_stock - $item->opening_stock;
-                $item->quantity += $stockDifference;
-                $item->opening_stock = $request->opening_stock;
-            }
-
-            // Handle main image upload
-            if ($request->hasFile('item_image')) {
-                // Delete old image if exists
-                if ($item->image && Storage::disk('public')->exists($item->image)) {
-                    Storage::disk('public')->delete($item->image);
-                }
-                
-                $imageName = time() . '_item.' . $request->item_image->extension();
-                $path = $request->item_image->storeAs('items', $imageName, 'public');
-                $item->image = $path;
-            }
-
-            // Handle additional image upload
-            if ($request->hasFile('additional_image')) {
-                // Delete old additional image if exists
-                if ($item->additional_image && Storage::disk('public')->exists($item->additional_image)) {
-                    Storage::disk('public')->delete($item->additional_image);
-                }
-                
-                $additionalImageName = time() . '_additional.' . $request->additional_image->extension();
-                $path = $request->additional_image->storeAs('items/additional', $additionalImageName, 'public');
-                $item->additional_image = $path;
-            }
-
-            $item->save();
-
-            return redirect()->route('items.index')->with('success', __('Item updated successfully.'));
-        } else {
+   /**
+ * Update the specified resource in storage.
+ */
+public function update(Request $request, $id)
+{
+    if (\Auth::user()->can('item_edit')) {
+        $item = Items::find($id);
+        
+        if (!$item) {
+            return redirect()->route('items.index')->with('error', __('Item not found.'));
+        }
+        
+        if ($item->created_by != Auth::user()->creatorId()) {
             return redirect()->back()->with('error', __('Permission denied.'));
         }
+
+        // Handle tax first - check if it's a custom tax
+        $taxId = null;
+        $taxName = $request->tax_name;
+        $taxPercentage = $request->tax_percentage;
+        
+        // If custom tax was added
+        if ($taxName && $taxPercentage) {
+            // Ensure tax name has TAX@ prefix
+            if (!str_starts_with($taxName, 'TAX@')) {
+                $taxName = 'TAX@' . $taxPercentage . '%';
+            }
+            
+            // Check if tax already exists for this company
+            $existingTax = Tax::where('name', $taxName)
+                            ->where('created_by', Auth::user()->creatorId())
+                            ->first();
+            
+            if ($existingTax) {
+                // Use existing tax
+                $taxId = $existingTax->id;
+            } else {
+                // Create new tax with TAX@ prefix
+                $tax = Tax::create([
+                    'name' => $taxName,
+                    'rate' => $taxPercentage,
+                    'created_by' => Auth::user()->creatorId(),
+                ]);
+                
+                $taxId = $tax->id;
+            }
+        } else {
+            // Use existing tax_id if provided
+            $taxId = $request->tax_id;
+        }
+
+        $validator = Validator::make(
+            $request->all(),
+            [
+                'name' => 'required|string|max:255',
+                'hsn' => 'nullable|string|max:50',
+                'barcode' => 'nullable|string|max:100|unique:items,barcode,' . $id,
+                'brand' => 'nullable|string|max:100',
+                'other_brand' => 'nullable|string|max:100',
+                'unit' => 'nullable|string|max:50',
+                'other_unit' => 'nullable|string|max:50',
+                'alert_quantity' => 'nullable|integer|min:0',
+                'category' => 'nullable|string|max:100',
+                'other_category' => 'nullable|string|max:100',
+                'description' => 'nullable|string',
+                'discount_type' => 'required|in:percentage,fixed',
+                'discount' => 'nullable|numeric|min:0',
+                'price' => 'required|numeric|min:0',
+                'company_id' => 'required|exists:users,id',
+                'profit_margin' => 'nullable|numeric|min:0',
+                'sku' => 'nullable|string|max:100|unique:items,sku,' . $id,
+                'seller_points' => 'nullable|integer|min:0',
+                'purchase_price' => 'required|numeric|min:0',
+                'sales_price' => 'required|numeric|min:0',
+                'opening_stock' => 'nullable|integer|min:0',
+                'item_image' => 'nullable|image|max:1024|mimes:jpeg,png,jpg,gif,webp',
+                'additional_image' => 'nullable|image|max:1024|mimes:jpeg,png,jpg,gif,webp',
+                // Custom tax validation
+                'tax_percentage' => 'required_with:tax_name|numeric|between:0,100',
+                'tax_name' => 'required_with:tax_percentage|string|max:50',
+            ],
+            [
+                'price.min' => 'Price must be greater than or equal to 0.',
+                'purchase_price.min' => 'Purchase price must be greater than or equal to 0.',
+                'sales_price.min' => 'Sales price must be greater than or equal to 0.',
+                'sku.unique' => 'This SKU already exists. Please use a different SKU.',
+                'barcode.unique' => 'This barcode already exists. Please use a different barcode.',
+                'tax_percentage.required_with' => 'Tax percentage is required when tax name is provided.',
+                'tax_name.required_with' => 'Tax name is required when tax percentage is provided.',
+                'company_id.required' => 'Please select a company.',
+                'company_id.exists' => 'The selected company does not exist.',
+            ]
+        );
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        // Handle "other" fields
+        $brand = $request->brand == 'other' ? $request->other_brand : $request->brand;
+        $unit = $request->unit == 'other' ? $request->other_unit : $request->unit;
+        $category = $request->category == 'other' ? $request->other_category : $request->category;
+
+        // Create new brand if "other" is selected and brand doesn't exist
+        if ($request->brand == 'other' && $request->other_brand) {
+            $newBrand = $this->createBrand($request->other_brand);
+            $brand = $newBrand->name;
+        }
+
+        // Create new category if "other" is selected and category doesn't exist
+        if ($request->category == 'other' && $request->other_category) {
+            $newCategory = $this->createCategory($request->other_category);
+            $category = $newCategory->name;
+        }
+
+        // Calculate profit margin if not provided
+        $profit_margin = $request->profit_margin;
+        if (empty($profit_margin) && $request->purchase_price > 0) {
+            $profit_margin = (($request->sales_price - $request->purchase_price) / $request->purchase_price) * 100;
+        }
+
+        $item->name = $request->name;
+        $item->item_group = "single";
+        $item->hsn = $request->hsn;
+        $item->barcode = $request->barcode;
+        $item->brand = $brand;
+        $item->unit = $unit;
+        $item->company_id = $request->company_id; // Make sure to update company_id
+        $item->alert_quantity = $request->alert_quantity ?? 0;
+        $item->category = $category;
+        $item->description = $request->description;
+        $item->discount_type = $request->discount_type;
+        $item->discount = $request->discount ?? 0;
+        $item->price = $request->price;
+        $item->tax_id = $taxId; // Use the tax ID we found/created
+        $item->profit_margin = $profit_margin ?? 0;
+        $item->sku = $request->sku;
+        $item->seller_points = $request->seller_points ?? 0;
+        $item->purchase_price = $request->purchase_price;
+        $item->sales_price = $request->sales_price;
+        
+        // Update stock if opening stock changed
+        if ($request->opening_stock != $item->opening_stock) {
+            $stockDifference = $request->opening_stock - $item->opening_stock;
+            $item->quantity += $stockDifference;
+            $item->opening_stock = $request->opening_stock ?? 0;
+        }
+
+        // Handle main image upload
+        if ($request->hasFile('item_image')) {
+            // Delete old image if exists
+            if ($item->image && Storage::disk('public')->exists($item->image)) {
+                Storage::disk('public')->delete($item->image);
+            }
+            
+            $imageName = time() . '_item.' . $request->item_image->extension();
+            $path = $request->item_image->storeAs('items', $imageName, 'public');
+            $item->image = $path;
+        }
+
+        // Handle additional image upload
+        if ($request->hasFile('additional_image')) {
+            // Delete old additional image if exists
+            if ($item->additional_image && Storage::disk('public')->exists($item->additional_image)) {
+                Storage::disk('public')->delete($item->additional_image);
+            }
+            
+            $additionalImageName = time() . '_additional.' . $request->additional_image->extension();
+            $path = $request->additional_image->storeAs('items/additional', $additionalImageName, 'public');
+            $item->additional_image = $path;
+        }
+
+        $item->save();
+
+        return redirect()->route('items.index')->with('success', __('Item updated successfully.'));
+    } else {
+        return redirect()->back()->with('error', __('Permission denied.'));
     }
+}
 
     /**
      * Remove the specified resource from storage.
@@ -539,7 +627,7 @@ class ItemController extends Controller
                     'purchase_price' => $item->purchase_price,
                     'quantity' => $item->quantity,
                     'tax_id' => $item->tax_id,
-                    'tax_type' => $item->tax_type,
+                  
                     'discount' => $item->discount,
                     'discount_type' => $item->discount_type,
                 ]
@@ -661,7 +749,7 @@ class ItemController extends Controller
                         $item->sales_price,
                         $item->mrp,
                         $item->profit_margin,
-                        $item->tax_type,
+                      
                         $item->tax ? $item->tax->name . ' (' . $item->tax->rate . '%)' : 'N/A',
                         $item->discount_type,
                         $item->discount,
