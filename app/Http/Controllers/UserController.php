@@ -133,6 +133,18 @@ public function index()
         'companies.*' => 'exists:users,id',
         'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:5120',
         'mobile' => 'nullable|string|max:20',
+
+        // New field validations
+        'date_of_birth' => 'nullable|date',
+        'date_of_joining' => 'nullable|date',
+        'blood_group' => 'nullable|string|max:10',
+        'gender' => 'nullable|string|in:male,female,other',
+        'marital_status' => 'nullable|string|in:single,married,divorced,widowed',
+        'address' => 'nullable|string|max:500',
+        'city' => 'nullable|string|max:100',
+        'state' => 'nullable|string|max:100',
+        'country' => 'nullable|string|max:100',
+        'pincode' => 'nullable|string|max:20',
     ], [
         'companies.required' => 'Please select at least one company.',
         'companies.min' => 'Please select at least one company.',
@@ -206,6 +218,17 @@ public function index()
             'messenger_color' => '#2180f3', // Add default messenger color
             'active_status' => 0, // Add default active status
             'is_email_verified' => 0, // Add default email verification status
+            // New fields
+            'date_of_birth' => $request->date_of_birth,
+            'date_of_joining' => $request->date_of_joining,
+            'blood_group' => $request->blood_group,
+            'gender' => $request->gender,
+            'marital_status' => $request->marital_status,
+            'address' => $request->address,
+            'city' => $request->city,
+            'state' => $request->state,
+            'country' => $request->country,
+            'pincode' => $request->pincode,
         ];
         
         // Save to avatar column (your table has 'avatar' not 'profile_picture')
@@ -980,6 +1003,15 @@ public function editprofile(Request $request)
 }
 
     //end for user login details
+
+
+    public function checkEmail(Request $request)
+{
+    $email = $request->input('email');
+    $exists = User::where('email', $email)->exists();
+    
+    return response()->json(['exists' => $exists]);
+}
 
 
 }

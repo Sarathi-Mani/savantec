@@ -47,6 +47,18 @@ class User extends Authenticatable implements MustVerifyEmail
         'profile_picture',
         'last_login_at',
         'created_by',
+        
+        // New fields added
+        'date_of_birth',
+        'date_of_joining',
+        'blood_group',
+        'gender',
+        'marital_status',
+        'address',
+        'city',
+        'state',
+        'country',
+        'pincode',
     ];
 
     protected $hidden = [

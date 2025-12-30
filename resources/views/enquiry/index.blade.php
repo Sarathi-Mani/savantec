@@ -188,12 +188,12 @@
 @endsection
 
 @push('styles')
-<link href="{{ asset('css/select2.min.css') }}" rel="stylesheet" />
+<!-- <link href="{{ asset('css/select2.min.css') }}" rel="stylesheet" /> -->
 @endpush
 
 @push('scripts')
-<script src="{{ asset('js/jquery.min.js') }}"></script>
-<script src="{{ asset('js/select2.min.js') }}"></script>
+<!-- <script src="{{ asset('js/jquery.min.js') }}"></script>
+<script src="{{ asset('js/select2.min.js') }}"></script> -->
 <script>
     $(document).ready(function() {
         // Initialize Select2

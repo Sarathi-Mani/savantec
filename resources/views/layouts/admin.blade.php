@@ -71,6 +71,111 @@
     <!--bootstrap switch-->
     <link rel="stylesheet" href="{{ asset('assets/css/plugins/bootstrap-switch-button.min.css') }}">
 
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+
+    <!-- Select2 Custom Styles -->
+    <style>
+        /* Match Select2 with Bootstrap input */
+        .select2-container .select2-selection--single,
+        .select2-container .select2-selection--multiple {
+            min-height: 38px;
+            padding: 0.375rem 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+        }
+
+        /* Text alignment */
+        .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            line-height: 1.5;
+            padding-left: 0;
+        }
+
+        /* Arrow fix */
+        .select2-selection__arrow {
+            height: 100%;
+        }
+
+        /* Multiple select */
+        .select2-selection--multiple {
+            display: flex;
+            align-items: center;
+        }
+
+        /* Focus same as input */
+        .select2-container--focus .select2-selection {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 .2rem rgba(13,110,253,.25);
+        }
+
+        /* Selected items - Blue background with white text */
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #0d6efd !important; /* Blue color */
+            border-color: #0d6efd !important;
+            color: #ffffff !important; /* White text */
+            padding: 3px 25px 3px 10px; /* More right padding for close button */
+            border-radius: 4px;
+            font-size: 0.85rem;
+            position: relative; /* For positioning the remove button */
+            margin-right: 5px;
+            margin-bottom: 3px;
+        }
+
+        /* Remove button (X) styling - Better positioning */
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: #ffffff !important;
+            position: absolute !important;
+            right: 5px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 16px !important;
+            height: 16px !important;
+            text-align: center !important;
+            line-height: 16px !important;
+            font-size: 14px !important;
+            font-weight: bold !important;
+            border: none !important;
+            background: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        /* Remove the default border-right */
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            border-right: none !important;
+        }
+
+        /* Hover effect for remove button */
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+            color: #ffcccb !important;
+            background-color: transparent !important;
+        }
+
+        /* Dropdown styling */
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #0d6efd;
+            color: #ffffff;
+        }
+
+        /* Selected option in dropdown */
+        .select2-container--default .select2-results__option[aria-selected=true] {
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+
+        /* Hover for selected option in dropdown */
+        .select2-container--default .select2-results__option[aria-selected=true]:hover {
+            background-color: #e9ecef;
+        }
+
+        /* Better spacing for text inside selected items */
+        .select2-selection__choice__display {
+            margin-right: 15px; /* Space between text and X button */
+        }
+    </style>
+
     <!-- vendor css -->
     @if ($SITE_RTL == 'on')
         <link rel="stylesheet" href="{{ asset('assets/css/style-rtl.css') }}">
@@ -83,137 +188,137 @@
     @endif
 
     <link rel="stylesheet" href="{{ asset('assets/css/customizer.css') }}">
-    <link href="{{ asset('css/select2.min.css') }}" rel="stylesheet" />
-    
-    <!-- Custom CSS for DataTables -->
-<style>
-    /* DataTables Custom Styles */
-    .dataTables_wrapper {
-        padding: 0;
-        margin: 0;
-    }
-    
-    .dataTables_wrapper .dataTables_length,
-    .dataTables_wrapper .dataTables_filter,
-    .dataTables_wrapper .dataTables_info,
-    .dataTables_wrapper .dataTables_processing,
-    .dataTables_wrapper .dataTables_paginate {
-        color: #6c757d;
-        margin: 15px;
-    }
-    
-    /* Center align the info text */
-    .dataTables_wrapper .dataTables_info {
-        
-        display: block;
-        margin: 15px 15px;
-        padding: 8px 0;
-    }
-    
-    .dataTables_wrapper .dataTables_paginate {
-        margin: 15px 15px;
-        padding: 10px 0;
-        display: flex;
-        justify-content: flex-end; 
-        align-items: center;
-    }
 
-    .dataTables_wrapper .dataTables_paginate .paginate_button {
-        margin: 0 3px;
-        border-radius: 4px;
-        background-color: #fff;
-        color: #333;
-        text-decoration: none;
-        display: inline-block;
-        min-width: 26px;
-        text-align: center;
-    }
-    
-    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-        background-color: #f5f5f5;
-        border-color: #999;
-    }
-    
-    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-        background-color: #6c63ff;
-        color: white;
-        border-color: #6c63ff;
-    }
-    
-    .dataTables_wrapper .dataTables_length select {
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 4px 8px;
-        background-color: #fff;
-    }
-    
-    .dataTables_wrapper .dataTables_filter input {
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 6px 12px;
-    }
-    
-    .dataTables_wrapper table.dataTable {
-        border-collapse: collapse !important;
-        margin: 0;
-        width: 100% !important;
-    }
-    
-    .dataTables_wrapper table.dataTable thead th {
-        border-bottom: 2px solid #dee2e6;
-        font-weight: 600;
-        vertical-align: middle;
-    }
-    
-    .dataTables_wrapper table.dataTable tbody td {
-        vertical-align: middle;
-    }
-    
-    /* Dark mode support */
-    @if($setting['cust_darklayout'] == 'on')
-        .dataTables_wrapper .dataTables_length select,
+    <!-- Custom CSS for DataTables -->
+    <style>
+        /* DataTables Custom Styles */
+        .dataTables_wrapper {
+            padding: 0;
+            margin: 0;
+        }
+        
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_processing,
+        .dataTables_wrapper .dataTables_paginate {
+            color: #6c757d;
+            margin: 15px;
+        }
+        
+        /* Center align the info text */
+        .dataTables_wrapper .dataTables_info {
+            
+            display: block;
+            margin: 15px 15px;
+            padding: 8px 0;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate {
+            margin: 15px 15px;
+            padding: 10px 0;
+            display: flex;
+            justify-content: flex-end; 
+            align-items: center;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            margin: 0 3px;
+            border-radius: 4px;
+            background-color: #fff;
+            color: #333;
+            text-decoration: none;
+            display: inline-block;
+            min-width: 26px;
+            text-align: center;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background-color: #f5f5f5;
+            border-color: #999;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background-color: #6c63ff;
+            color: white;
+            border-color: #6c63ff;
+        }
+        
+        .dataTables_wrapper .dataTables_length select {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px 8px;
+            background-color: #fff;
+        }
+        
         .dataTables_wrapper .dataTables_filter input {
-            background-color: #2d2d2d;
-            border-color: #444;
-            color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 6px 12px;
+        }
+        
+        .dataTables_wrapper table.dataTable {
+            border-collapse: collapse !important;
+            margin: 0;
+            width: 100% !important;
         }
         
         .dataTables_wrapper table.dataTable thead th {
-            background-color: #343a40;
-            color: #fff;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            vertical-align: middle;
         }
         
-        .dataTables_wrapper table.dataTable tbody tr {
-            background-color: #2d2d2d;
-            color: #fff;
+        .dataTables_wrapper table.dataTable tbody td {
+            vertical-align: middle;
         }
         
-        .dataTables_wrapper table.dataTable tbody tr:nth-child(even) {
-            background-color: #343a40;
-        }
-        
-        .dataTables_wrapper .paginate_button {
-            color: #ddd !important;
-            background-color: #444 !important;
-            border-color: #555 !important;
-        }
-        
-        .dataTables_wrapper .paginate_button:hover {
-            background-color: #555 !important;
-            border-color: #666 !important;
-        }
-        
-        .dataTables_wrapper .paginate_button.current {
-            background-color: #6c63ff !important;
-            border-color: #6c63ff !important;
-            color: white !important;
-        }
-        
-        .dataTables_wrapper .dataTables_info {
-            color: #ddd !important;
-        }
-    @endif
-</style>
+        /* Dark mode support */
+        @if($setting['cust_darklayout'] == 'on')
+            .dataTables_wrapper .dataTables_length select,
+            .dataTables_wrapper .dataTables_filter input {
+                background-color: #2d2d2d;
+                border-color: #444;
+                color: #fff;
+            }
+            
+            .dataTables_wrapper table.dataTable thead th {
+                background-color: #343a40;
+                color: #fff;
+            }
+            
+            .dataTables_wrapper table.dataTable tbody tr {
+                background-color: #2d2d2d;
+                color: #fff;
+            }
+            
+            .dataTables_wrapper table.dataTable tbody tr:nth-child(even) {
+                background-color: #343a40;
+            }
+            
+            .dataTables_wrapper .paginate_button {
+                color: #ddd !important;
+                background-color: #444 !important;
+                border-color: #555 !important;
+            }
+            
+            .dataTables_wrapper .paginate_button:hover {
+                background-color: #555 !important;
+                border-color: #666 !important;
+            }
+            
+            .dataTables_wrapper .paginate_button.current {
+                background-color: #6c63ff !important;
+                border-color: #6c63ff !important;
+                color: white !important;
+            }
+            
+            .dataTables_wrapper .dataTables_info {
+                color: #ddd !important;
+            }
+        @endif
+    </style>
+    
     <link rel="stylesheet" href="{{ asset('css/custom.css') }}">
     
     @if ($setting['cust_darklayout'] == 'on')
@@ -395,6 +500,13 @@
 @include('partials.admin.footer')
 @include('Chatify::layouts.footerLinks')
 
+<!-- jQuery -->
+<script src="{{ asset('js/jquery.min.js') }}"></script>
+
+<!-- Select2 JS (MUST be loaded after jQuery but BEFORE any scripts that use it) -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<!-- DataTables -->
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
@@ -410,9 +522,9 @@
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
 
+<!-- Custom JS (must come AFTER Select2) -->
+<script src="{{ asset('js/custom.js') }}"></script>
 
-
-<script src="{{ asset('js/select2.min.js') }}"></script>
 @stack('scripts')
 </body>
 </html>
