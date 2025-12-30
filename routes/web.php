@@ -2102,7 +2102,7 @@ Route::delete('item-variants/{item_variant}', [ItemVariantController::class, 'de
     Route::get('userlogs/{id}',[UserController::class,'userLogView'])->name('user.userlogview')->middleware(['auth','XSS']);
     Route::delete('userlogs/{id}', [UserController::class, 'userLogDestroy'])->name('user.userlogdestroy')->middleware(['auth', 'XSS']);
 Route::get('users/export', [UserController::class, 'export'])->name('users.export');
-
+Route::get('/check-email', [UserController::class, 'checkEmail'])->name('check.email');
     //notification Template
     Route::get('notification_templates/{id?}/{lang?}', [NotificationTemplatesController::class, 'index'])->name('notification_templates.index')->middleware(['auth','XSS',]);
     Route::resource('notification-templates', NotificationTemplatesController::class)->middleware(['auth','XSS',]);
